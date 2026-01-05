@@ -515,10 +515,12 @@ export function createScoringResultMessage(
       gradeMessage = '採点が完了しました';
   }
 
-  // 詳細を表示するためのコンテンツを作成
+  // 詳細を表示するためのコンテンツを作成（最大5件まで表示）
   const detailContents: any[] = [];
+  const maxDetails = Math.min(details.length, 5);
   
-  details.forEach((detail, index) => {
+  for (let index = 0; index < maxDetails; index++) {
+    const detail = details[index];
     if (index > 0) {
       detailContents.push({
         type: 'separator' as const,
@@ -529,6 +531,11 @@ export function createScoringResultMessage(
     
     const isCorrect = detail.points === detail.maxPoints;
     
+    // テキストの長さを制限（LINEの制限: 2000文字）
+    const questionTitle = detail.questionTitle.substring(0, 40);
+    const userAnswer = (detail.userAnswer || '（未回答）').substring(0, 100);
+    const feedbackText = (detail.feedback || '').substring(0, 150);
+    
     detailContents.push({
       type: 'box' as const,
       layout: 'vertical' as const,
@@ -536,7 +543,7 @@ export function createScoringResultMessage(
       contents: [
         {
           type: 'text' as const,
-          text: `Q${index + 1}: ${detail.questionTitle.substring(0, 50)}${detail.questionTitle.length > 50 ? '...' : ''}`,
+          text: `Q${index + 1}: ${questionTitle}${detail.questionTitle.length > 40 ? '...' : ''}`,
           size: 'sm' as const,
           color: '#666666',
           wrap: true,
@@ -548,7 +555,7 @@ export function createScoringResultMessage(
           contents: [
             {
               type: 'text' as const,
-              text: `あなたの回答: ${detail.userAnswer || '（未回答）'}`,
+              text: `回答: ${userAnswer}${userAnswer.length >= 100 ? '...' : ''}`,
               size: 'xs' as const,
               color: '#999999',
               flex: 1,
@@ -565,7 +572,7 @@ export function createScoringResultMessage(
         },
         {
           type: 'text' as const,
-          text: detail.feedback || '',
+          text: feedbackText || 'フィードバックなし',
           size: 'xs' as const,
           color: '#666666',
           wrap: true,
@@ -581,7 +588,24 @@ export function createScoringResultMessage(
       ],
       margin: 'sm' as const,
     });
-  });
+  }
+  
+  // 詳細が5件を超える場合は、残りの件数を表示
+  if (details.length > maxDetails) {
+    detailContents.push({
+      type: 'separator' as const,
+      margin: 'md' as const,
+      color: '#E0E0E0',
+    });
+    detailContents.push({
+      type: 'text' as const,
+      text: `他${details.length - maxDetails}件の質問があります`,
+      size: 'xs' as const,
+      color: '#999999',
+      align: 'center' as const,
+      margin: 'md' as const,
+    });
+  }
 
   return {
     type: 'flex' as const,

@@ -166,6 +166,12 @@ export async function POST(request: NextRequest) {
       }
       if (errorObj.response) {
         console.error('[FormSubmit] Error response:', JSON.stringify(errorObj.response, null, 2));
+        if (errorObj.response.data) {
+          console.error('[FormSubmit] Error response data:', JSON.stringify(errorObj.response.data, null, 2));
+          if (errorObj.response.data.details) {
+            console.error('[FormSubmit] Error details:', JSON.stringify(errorObj.response.data.details, null, 2));
+          }
+        }
       }
       if (errorObj.config) {
         console.error('[FormSubmit] Error config:', JSON.stringify(errorObj.config, null, 2));
