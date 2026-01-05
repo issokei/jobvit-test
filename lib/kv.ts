@@ -12,11 +12,19 @@ function getRedisClient(): Redis {
   }
 
   // VercelのRedis接続情報を環境変数から取得
-  // LINE_REDIS_URL または REDIS_URL のどちらかを使用
-  const redisUrl = process.env.LINE_REDIS_URL || process.env.REDIS_URL;
+  // 優先順位: LINE_REDIS_URL > REDIS_URL > jobvitTest_REDIS_URL > その他の*_REDIS_URL
+  const redisUrl = 
+    process.env.LINE_REDIS_URL || 
+    process.env.REDIS_URL ||
+    process.env.jobvitTest_REDIS_URL ||
+    // Vercelが自動生成する環境変数名のパターンもチェック
+    Object.keys(process.env).find(key => key.endsWith('_REDIS_URL') && process.env[key]) 
+      ? process.env[Object.keys(process.env).find(key => key.endsWith('_REDIS_URL'))!]
+      : undefined;
   
   if (!redisUrl) {
     console.error('[KV] REDIS_URL or LINE_REDIS_URL environment variable is not set');
+    console.error('[KV] Available env vars:', Object.keys(process.env).filter(key => key.includes('REDIS')));
     throw new Error('REDIS_URL or LINE_REDIS_URL environment variable is not set');
   }
 

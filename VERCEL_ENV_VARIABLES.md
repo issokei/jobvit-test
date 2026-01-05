@@ -23,6 +23,22 @@
 
 **注意**: どちらか一方を設定すればOKです。両方設定されている場合は`LINE_REDIS_URL`が優先されます。
 
+#### Redisデータベースの作成手順（Vercel）
+
+1. [Vercel Dashboard](https://vercel.com/dashboard)にログイン
+2. プロジェクトを選択
+3. **Storage**タブをクリック
+4. **Create Database**をクリック
+5. **Redis**を選択
+6. プランを選択（無料プランでもOK）
+7. データベース名を入力（例: `redis-db`）
+8. リージョンを選択（推奨: `Tokyo`）
+9. **Create**をクリック
+
+**重要**: Redisデータベースを作成すると、Vercelが自動的に`REDIS_URL`環境変数を設定します。手動で設定する必要はありません。
+
+もし自動設定されない場合は、Storageタブで作成したRedisデータベースを開き、**.env.local**セクションに表示されている`REDIS_URL`の値をコピーして、Settings > Environment Variablesに手動で設定してください。
+
 ### 3. Google Service Account設定
 
 | 環境変数名 | 説明 | 取得方法 |
