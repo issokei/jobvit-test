@@ -305,7 +305,8 @@ function computeCompanyFit(
       const minS = (r.gate && Number.isFinite(Number(r.gate.minS))) ? Number(r.gate.minS) : 3;
       const minC = (r.gate && r.gate.minC) ? String(r.gate.minC) : '中';
       const c = confidences[d] || 'NA';
-      if (s >= minS && confRank(c) >= confRank(minC)) {
+      // dimベースのルールでは、gateがなくても常にチェック
+      if (!r.gate || (s >= minS && confRank(c) >= confRank(minC))) {
         hitPoints += points;
         if (r.id) hits.push(String(r.id));
       }
@@ -530,7 +531,7 @@ function confRank(c: string): number {
 }
 
 function passesGateAnyDim(
-  gate: { dims: number[]; minS: number; minC: string } | undefined,
+  gate: { dims?: number[]; minS: number; minC: string } | undefined,
   scores: Record<number, number | null>,
   confidences: Record<number, string>
 ): boolean {

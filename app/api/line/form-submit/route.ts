@@ -38,33 +38,46 @@ function getLineClient(): Client {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, formData } = body;
+    const { userId, formData, error, message, availableQuestions } = body;
 
     console.log('[FormSubmit] Received form submission');
-    console.log('[FormSubmit] userId:', userId);
-    console.log('[FormSubmit] formData keys:', Object.keys(formData || {}));
+    console.log('[FormSubmit] Request body keys:', Object.keys(body || {}));
+
+    // エラー情報が含まれている場合（userIdが見つからない場合など）
+    if (error) {
+      console.error('[FormSubmit] Error from Google Apps Script:', error);
+      console.error('[FormSubmit] Message:', message);
+      console.error('[FormSubmit] Available questions:', availableQuestions);
+      return NextResponse.json({ 
+        error: error,
+        message: message || 'Google Apps Scriptからエラーが報告されました',
+        availableQuestions: availableQuestions,
+      }, { status: 400 });
+    }
 
     if (!userId) {
       console.error('[FormSubmit] userId is required');
+      console.error('[FormSubmit] Received body:', JSON.stringify(body, null, 2));
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
+
+    console.log('[FormSubmit] userId:', userId);
+    console.log('[FormSubmit] formData keys:', Object.keys(formData || {}));
+    console.log('[FormSubmit] formData sample:', JSON.stringify(formData).substring(0, 500));
 
     if (!formData || typeof formData !== 'object') {
       console.error('[FormSubmit] formData is required');
       return NextResponse.json({ error: 'formData is required' }, { status: 400 });
     }
 
-    // スプレッドシートに保存
-    try {
-      await saveFormSubmission(userId, formData);
-      console.log('[FormSubmit] Form data saved to sheet');
-    } catch (error) {
+    // スプレッドシートへの保存は非同期で実行（採点をブロックしない）
+    const savePromise = saveFormSubmission(userId, formData).catch((error) => {
       console.error('[FormSubmit] Failed to save form data:', error);
-      // 保存エラーは続行（採点と送信は実行する）
-    }
+      // 保存エラーは無視（採点と送信は実行する）
+    });
 
-    // ChatGPT APIを使って採点を実行
-    console.log('[FormSubmit] Starting AI scoring...');
+    // ChatGPT APIを使って採点を実行（即座に開始）
+    console.log('[FormSubmit] Starting AI scoring immediately...');
     let scoringResult;
     try {
       scoringResult = await scoreFormAnswersWithAI(formData);
@@ -88,30 +101,34 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // LINE Botに採点結果を送信
-    try {
-      const client = getLineClient();
-      const scoringMessage = createScoringResultMessage(
-        scoringResult.totalPoints,
-        scoringResult.maxPoints,
-        scoringResult.percentage,
-        scoringResult.grade,
-        scoringResult.feedback || '',
-        scoringResult.details
-      );
+    // LINE Botに採点結果を送信（即座に送信）
+    const lineSendPromise = (async () => {
+      try {
+        const client = getLineClient();
+        const scoringMessage = createScoringResultMessage(
+          scoringResult.totalPoints,
+          scoringResult.maxPoints,
+          scoringResult.percentage,
+          scoringResult.grade,
+          scoringResult.feedback || '',
+          scoringResult.details
+        );
 
-      console.log('[FormSubmit] Sending scoring result to LINE...');
-      await client.pushMessage(userId, scoringMessage);
-      console.log('[FormSubmit] Scoring result sent successfully');
-    } catch (error) {
-      console.error('[FormSubmit] Failed to send scoring result:', error);
-      if (error instanceof Error) {
-        console.error('[FormSubmit] Error message:', error.message);
-        console.error('[FormSubmit] Error stack:', error.stack);
+        console.log('[FormSubmit] Sending scoring result to LINE...');
+        await client.pushMessage(userId, scoringMessage);
+        console.log('[FormSubmit] Scoring result sent successfully');
+      } catch (error) {
+        console.error('[FormSubmit] Failed to send scoring result:', error);
+        if (error instanceof Error) {
+          console.error('[FormSubmit] Error message:', error.message);
+          console.error('[FormSubmit] Error stack:', error.stack);
+        }
+        // LINE送信エラーは続行（レスポンスは成功を返す）
       }
-      // LINE送信エラーは続行（レスポンスは成功を返す）
-    }
+    })();
 
+    // レスポンスを即座に返す（LINE送信はバックグラウンドで実行）
+    // これにより、Google Apps Scriptのタイムアウトを回避し、ユーザーへの応答を高速化
     return NextResponse.json({ 
       message: 'OK',
       scoring: {

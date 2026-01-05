@@ -24,7 +24,7 @@ export interface FitRule {
   dim?: number; // 観点番号（1-10）
   points: number;
   gate?: {
-    dims: number[];
+    dims?: number[]; // sigベースのルールで使用
     minS: number;
     minC: string;
   };

@@ -222,9 +222,16 @@ async function handleEvent(event: WebhookEvent, client: Client) {
         return;
       }
 
-      // Googleフォーム採点機能
-      const { handleFormScoringMessage } = await import('./form-scoring-handler');
-      await handleFormScoringMessage(text, userId, replyToken, client);
+      // メッセージ受信時の処理（Googleフォーム採点機能は無効化）
+      // イベント情報以外のメッセージには案内を返す
+      await client.replyMessage(replyToken, {
+        type: 'text',
+        text: [
+          'こんにちは！',
+          'イベント情報を見るには「イベント情報」と送信してください。',
+          'フォームに回答すると、自動的に採点結果をお送りします。',
+        ].join('\n'),
+      });
       return;
     }
   }

@@ -1,7 +1,9 @@
 /**
  * 企業アドオン定義
  */
-import { CompanyAddon } from './es-review-types';
+import type { CompanyAddon } from './es-review-types';
+
+export type { CompanyAddon };
 
 export const COMPANY_ADDONS: Record<string, CompanyAddon> = {
   panasonic: {
