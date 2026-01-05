@@ -101,34 +101,82 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // LINE Botに採点結果を送信（即座に送信）
-    const lineSendPromise = (async () => {
-      try {
-        const client = getLineClient();
-        const scoringMessage = createScoringResultMessage(
-          scoringResult.totalPoints,
-          scoringResult.maxPoints,
-          scoringResult.percentage,
-          scoringResult.grade,
-          scoringResult.feedback || '',
-          scoringResult.details
-        );
+    // LINE Botに採点結果を送信
+    console.log('[FormSubmit] Preparing LINE message...');
+    console.log('[FormSubmit] Scoring result details:', {
+      totalPoints: scoringResult.totalPoints,
+      maxPoints: scoringResult.maxPoints,
+      percentage: scoringResult.percentage,
+      grade: scoringResult.grade,
+      detailsCount: scoringResult.details?.length || 0,
+      hasFeedback: !!scoringResult.feedback,
+    });
 
-        console.log('[FormSubmit] Sending scoring result to LINE...');
-        await client.pushMessage(userId, scoringMessage);
-        console.log('[FormSubmit] Scoring result sent successfully');
-      } catch (error) {
-        console.error('[FormSubmit] Failed to send scoring result:', error);
-        if (error instanceof Error) {
-          console.error('[FormSubmit] Error message:', error.message);
-          console.error('[FormSubmit] Error stack:', error.stack);
-        }
-        // LINE送信エラーは続行（レスポンスは成功を返す）
+    try {
+      console.log('[FormSubmit] Getting LINE client...');
+      const client = getLineClient();
+      console.log('[FormSubmit] LINE client created successfully');
+      
+      console.log('[FormSubmit] Creating scoring message...');
+      const scoringMessage = createScoringResultMessage(
+        scoringResult.totalPoints,
+        scoringResult.maxPoints,
+        scoringResult.percentage,
+        scoringResult.grade,
+        scoringResult.feedback || '',
+        scoringResult.details || []
+      );
+      console.log('[FormSubmit] Scoring message created successfully');
+      console.log('[FormSubmit] Message type:', scoringMessage.type);
+      console.log('[FormSubmit] Message altText:', scoringMessage.altText);
+
+      console.log('[FormSubmit] Sending scoring result to LINE...');
+      console.log('[FormSubmit] UserId:', userId);
+      console.log('[FormSubmit] UserId length:', userId.length);
+      
+      const sendStartTime = Date.now();
+      const pushResult = await Promise.race([
+        client.pushMessage(userId, scoringMessage),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('LINE API timeout after 30 seconds')), 30000)
+        )
+      ]) as any;
+      const sendEndTime = Date.now();
+      
+      console.log('[FormSubmit] Scoring result sent successfully');
+      console.log('[FormSubmit] Send time:', sendEndTime - sendStartTime, 'ms');
+      console.log('[FormSubmit] Push message result:', JSON.stringify(pushResult, null, 2));
+    } catch (error) {
+      console.error('[FormSubmit] ========== LINE SEND ERROR ==========');
+      console.error('[FormSubmit] Failed to send scoring result:', error);
+      
+      if (error instanceof Error) {
+        console.error('[FormSubmit] Error name:', error.name);
+        console.error('[FormSubmit] Error message:', error.message);
+        console.error('[FormSubmit] Error stack:', error.stack);
       }
-    })();
+      
+      // LINE SDKのエラーオブジェクトの詳細を確認
+      const errorObj = error as any;
+      if (errorObj.statusCode) {
+        console.error('[FormSubmit] Error statusCode:', errorObj.statusCode);
+      }
+      if (errorObj.originalError) {
+        console.error('[FormSubmit] Original error:', errorObj.originalError);
+      }
+      if (errorObj.response) {
+        console.error('[FormSubmit] Error response:', JSON.stringify(errorObj.response, null, 2));
+      }
+      if (errorObj.config) {
+        console.error('[FormSubmit] Error config:', JSON.stringify(errorObj.config, null, 2));
+      }
+      
+      console.error('[FormSubmit] ======================================');
+      // LINE送信エラーは続行（レスポンスは成功を返す）
+    }
 
-    // レスポンスを即座に返す（LINE送信はバックグラウンドで実行）
-    // これにより、Google Apps Scriptのタイムアウトを回避し、ユーザーへの応答を高速化
+    // レスポンスを返す
+    console.log('[FormSubmit] Returning response...');
     return NextResponse.json({ 
       message: 'OK',
       scoring: {

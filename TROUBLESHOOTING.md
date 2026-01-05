@@ -1,265 +1,212 @@
 # トラブルシューティングガイド
 
-スプレッドシートに保存されない問題を解決するためのガイドです。
+## 🔍 フォーム送信後、採点結果がLINEに返ってこない
+
+### 症状
+
+- フォーム送信は成功している
+- ログに「[FormSubmit] Starting AI scoring immediately...」は表示される
+- しかし、その後のログ（AI採点完了、LINE送信など）が表示されない
+- LINE Botから採点結果が届かない
+
+### 考えられる原因と解決方法
+
+#### 1. OpenAI APIのモデル名が間違っている
+
+**症状:**
+- `gpt-5.2`というモデル名を使用している
+- OpenAI APIからエラーが返ってくる
+
+**解決方法:**
+
+環境変数`OPENAI_MODEL`を正しいモデル名に設定してください。
+
+**利用可能なモデル名:**
+- `gpt-4o` - 最新の高性能モデル
+- `gpt-4o-mini` - 高速で低コスト（推奨）
+- `gpt-4-turbo` - GPT-4 Turbo
+- `gpt-4` - GPT-4
+
+**設定方法:**
+
+Vercelの環境変数で設定：
+```
+OPENAI_MODEL=gpt-4o-mini
+```
+
+または、`VERCEL_ENV_VARIABLES.md`を参照してください。
 
 ---
 
-## 🔍 確認手順
+#### 2. OpenAI APIキーが設定されていない、または無効
 
-### 1. Vercel のログを確認
+**症状:**
+- `OPENAI_API_KEY`が設定されていない
+- APIキーが無効または期限切れ
 
-まず、Vercel Dashboard でログを確認して、エラーが発生しているか確認してください。
+**確認方法:**
 
-#### 方法 1: Deployment Details の Logs タブから確認（推奨）
-
-1. [Vercel Dashboard](https://vercel.com/dashboard)にログイン
-2. プロジェクトを選択
-3. **Deployments**タブをクリック
-4. 最新のデプロイメントを選択
-5. 上部のタブから**Logs**をクリック
-6. ログを確認（必要に応じてフィルターで`/api/line/webhook`を検索）
-
-#### 方法 2: Runtime Logs カードから確認
-
-1. [Vercel Dashboard](https://vercel.com/dashboard)にログイン
-2. プロジェクトを選択
-3. **Deployments**タブをクリック
-4. 最新のデプロイメントを選択
-5. ページ下部の**Runtime Logs**カードをクリック
-6. ログを確認（必要に応じてフィルターで`/api/line/webhook`を検索）
-
-#### 方法 3: プロジェクトの Logs から確認
-
-1. [Vercel Dashboard](https://vercel.com/dashboard)にログイン
-2. プロジェクトを選択
-3. 左サイドバーから**Logs**を選択
-4. 最新のログを確認
-
-#### 確認すべきログ
-
-**正常な場合:**
-
+Vercelのログで以下を確認：
 ```
-[handleMessage] Attempting to save to sheet...
-[Sheets] ===== START saveProfileToSheet =====
-[Sheets] userId: U...
-[Sheets] answers: {...}
-[Sheets] Saving to 1 sheet(s)
-[Sheets] Saving to sheet 1/1: 1edatXCNj9UJX8iD35qhT8L8DecT64TbGyTObutWyrp0 シート1
-[Sheets] ✅ Successfully saved to sheet 1/1
-[Sheets] ===== SUCCESS saveProfileToSheet (all sheets) =====
-[handleMessage] ✅ Profile saved to sheet successfully
+[AIScoring] API Key exists: false
 ```
 
-**エラーが発生している場合:**
+**解決方法:**
 
-```
-[Sheets] ❌ Failed to save to sheet 1/1: [エラー内容]
-[Sheets] Error message: [エラーメッセージ]
-[handleMessage] ❌ saveProfileToSheet failed: [エラー内容]
-```
+1. [OpenAI Platform](https://platform.openai.com/api-keys)でAPIキーを確認
+2. Vercelの環境変数に`OPENAI_API_KEY`を設定
+3. デプロイを再実行
 
 ---
 
-## ⚠️ よくある原因と解決方法
+#### 3. OpenAI APIの呼び出しでタイムアウトが発生
 
-### 0. Google Sheets API が有効化されていない
+**症状:**
+- API呼び出しが長時間かかる
+- タイムアウトエラーが発生する
 
-**症状**: ログに`Google Sheets API has not been used in project XXX before or it is disabled`というエラーが表示される
+**解決方法:**
 
-**解決方法**:
-
-1. [Google Cloud Console](https://console.cloud.google.com/)にアクセス
-2. プロジェクト ID を確認（エラーメッセージに表示されているプロジェクト ID）
-3. 以下のリンクから直接 Google Sheets API を有効化：
-   - プロジェクト ID が`126305308570`の場合: https://console.developers.google.com/apis/api/sheets.googleapis.com/overview?project=126305308570
-4. **有効にする**ボタンをクリック
-5. API が有効化されるまで数分待機
-6. 再デプロイして動作確認
-
-**詳細**: [GOOGLE_SHEETS_API_SETUP.md](./GOOGLE_SHEETS_API_SETUP.md)を参照してください。
+- プロンプトの長さを確認（長すぎる場合は短縮）
+- モデルを`gpt-4o-mini`に変更（高速）
+- Vercelのタイムアウト設定を確認（デフォルト: 10秒、Hobbyプラン）
 
 ---
 
-### 1. Google Service Account の権限設定が不足している
+#### 4. LINE APIの呼び出しでエラーが発生
 
-**症状**: ログに`Permission denied`や`The caller does not have permission`というエラーが表示される
+**症状:**
+- AI採点は完了している
+- LINE送信でエラーが発生する
 
-**解決方法**:
+**確認方法:**
 
-1. スプレッドシートを開く: https://docs.google.com/spreadsheets/d/1edatXCNj9UJX8iD35qhT8L8DecT64TbGyTObutWyrp0/edit
-2. **共有**ボタンをクリック
-3. Google Service Account のメールアドレスを追加
-   - メールアドレス: `intenexpoline@internexpo-line.iam.gserviceaccount.com`
-   - （`.env.local`の`GOOGLE_SERVICE_ACCOUNT_EMAIL`の値）
-4. **編集権限**を付与
-5. **送信**をクリック
-
-**確認方法**: Vercel Dashboard > Settings > Environment Variables で`GOOGLE_SERVICE_ACCOUNT_EMAIL`の値を確認
-
----
-
-### 2. シート名が間違っている
-
-**症状**: ログに`Unable to parse range`や`not found`というエラーが表示される
-
-**解決方法**:
-
-1. スプレッドシートを開く
-2. 下部のタブ名を確認（例: `シート1`、`Sheet1`など）
-3. `lib/config.ts`の`sheetName`が正確に一致しているか確認
-
-**現在の設定**:
-
-```typescript
-export const SHEET_CONFIGS: SheetConfig[] = [
-  {
-    spreadsheetId: "1edatXCNj9UJX8iD35qhT8L8DecT64TbGyTObutWyrp0",
-    sheetName: "シート1", // ← この値がスプレッドシートのタブ名と一致しているか確認
-  },
-];
+Vercelのログで以下を確認：
+```
+[FormSubmit] Failed to send scoring result: ...
 ```
 
-**注意**:
+**考えられる原因:**
 
-- 大文字小文字を区別します
-- スペースも含めて正確に入力してください
-- 日本語のシート名の場合は、全角・半角も確認してください
+- `LINE_CHANNEL_ACCESS_TOKEN`が無効
+- `LINE_CHANNEL_SECRET`が無効
+- LINE Platformのサーバーエラー
+- ユーザーIDが無効
+
+**解決方法:**
+
+1. LINE Developers Consoleでチャネルアクセストークンを確認
+2. Vercelの環境変数を確認
+3. ユーザーIDが正しいか確認
 
 ---
 
-### 3. スプレッドシート ID が間違っている
+#### 5. レスポンスの処理でエラーが発生
 
-**症状**: ログに`Unable to parse range`や`not found`というエラーが表示される
+**症状:**
+- OpenAI APIからレスポンスは返ってくる
+- JSONパースでエラーが発生する
 
-**解決方法**:
+**確認方法:**
 
-1. スプレッドシートの URL を確認
-2. URL 形式: `https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit`
-3. `lib/config.ts`の`spreadsheetId`が正確か確認
-
-**現在の設定**:
-
-```typescript
-spreadsheetId: "1edatXCNj9UJX8iD35qhT8L8DecT64TbGyTObutWyrp0";
+Vercelのログで以下を確認：
+```
+[AIScoring] Failed to parse JSON response: ...
 ```
 
----
+**解決方法:**
 
-### 4. Google Service Account の認証情報が間違っている
-
-**症状**: ログに`Invalid credentials`や`Authentication failed`というエラーが表示される
-
-**解決方法**:
-
-1. Vercel Dashboard > Settings > Environment Variables で以下を確認：
-   - `GOOGLE_SERVICE_ACCOUNT_EMAIL`が正しく設定されているか
-   - `GOOGLE_PRIVATE_KEY`が正しく設定されているか（改行文字`\n`を含む必要があります）
-
-**確認方法**: ログで以下を確認
-
-```
-[Sheets] Service account email: set  ← 設定されている
-[Sheets] Private key: set (length: XXX)  ← 設定されている
-```
-
----
-
-### 5. 環境変数が設定されていない
-
-**症状**: ログに`NOT SET`と表示される
-
-**解決方法**:
-
-1. Vercel Dashboard > Settings > Environment Variables で以下を確認：
-   - `GOOGLE_SERVICE_ACCOUNT_EMAIL`
-   - `GOOGLE_PRIVATE_KEY`
-2. 設定されていない場合は追加
-3. 環境変数を更新した場合は、**Redeploy**を実行
-
----
-
-### 6. スプレッドシートが削除されている、またはアクセスできない
-
-**症状**: ログに`not found`というエラーが表示される
-
-**解決方法**:
-
-1. スプレッドシートが存在するか確認
-2. スプレッドシートの URL にアクセスできるか確認
-3. スプレッドシート ID が正しいか確認
+- OpenAI APIのレスポンス形式を確認
+- プロンプトでJSON形式を明確に指定（既に実装済み）
 
 ---
 
 ## 🔧 デバッグ方法
 
-### ログの確認ポイント
+### 1. Vercelのログを確認
 
-1. **アンケート完了時のログ**
+1. Vercelダッシュボードにログイン
+2. プロジェクトを選択
+3. 「Logs」タブを開く
+4. フォーム送信時のログを確認
 
-   ```
-   [handleMessage] ===== ALL QUESTIONS COMPLETED =====
-   [handleMessage] Attempting to save to sheet...
-   ```
+**確認すべきログ:**
 
-2. **スプレッドシート保存開始のログ**
+```
+[FormSubmit] Received form submission
+[FormSubmit] Starting AI scoring immediately...
+[AIScoring] Sending request to ChatGPT API...
+[AIScoring] Model: gpt-4o-mini
+[AIScoring] API Key exists: true
+[AIScoring] Calling OpenAI API...
+[AIScoring] OpenAI API call completed in XXX ms
+[AIScoring] Received response from ChatGPT API
+[AIScoring] Scoring completed: ...
+[FormSubmit] AI scoring completed: ...
+[FormSubmit] Preparing LINE message...
+[FormSubmit] Sending scoring result to LINE...
+[FormSubmit] Scoring result sent successfully
+```
 
-   ```
-   [Sheets] ===== START saveProfileToSheet =====
-   [Sheets] Saving to 1 sheet(s)
-   ```
+### 2. エラーログを確認
 
-3. **エラーログ**
-   ```
-   [Sheets] ❌ Failed to save to sheet 1/1: [エラー内容]
-   [handleMessage] ❌ saveProfileToSheet failed: [エラー内容]
-   ```
+エラーが発生している場合、以下のログが表示されます：
 
-### テスト方法
+```
+[AIScoring] Error calling ChatGPT API: ...
+[FormSubmit] Failed to score with AI: ...
+[FormSubmit] Failed to send scoring result: ...
+```
 
-1. LINE Bot でアンケートを完了
-2. Vercel Dashboard でログを確認
-3. エラーメッセージを確認
-4. 上記の解決方法を試す
+### 3. Google Apps Scriptのログを確認
+
+1. Apps Scriptエディタを開く
+2. 「実行数」タブを開く
+3. 最新の実行を確認
+4. ログを確認
+
+**確認すべきログ:**
+
+```
+=== onFormSubmit START ===
+Calling Next.js API: https://...
+Response Time: XXXms
+Status Code: 200
+SUCCESS: Next.js API call completed
+採点完了: A評価 (85%)
+=== onFormSubmit END ===
+```
 
 ---
 
 ## 📋 チェックリスト
 
-以下のチェックリストを使用して、問題を特定してください：
+フォーム送信後、採点結果が返ってこない場合：
 
-- [ ] Google Service Account のメールアドレスがスプレッドシートに共有されている
-- [ ] Google Service Account に**編集権限**が付与されている
-- [ ] `lib/config.ts`の`spreadsheetId`が正しい
-- [ ] `lib/config.ts`の`sheetName`がスプレッドシートのタブ名と完全に一致している
-- [ ] Vercel Dashboard で`GOOGLE_SERVICE_ACCOUNT_EMAIL`が設定されている
-- [ ] Vercel Dashboard で`GOOGLE_PRIVATE_KEY`が設定されている（改行文字`\n`を含む）
-- [ ] 環境変数を更新した場合は、**Redeploy**を実行した
-- [ ] Vercel Dashboard のログでエラーメッセージを確認した
+- [ ] `OPENAI_API_KEY`が設定されているか
+- [ ] `OPENAI_MODEL`が正しいモデル名か（`gpt-4o-mini`推奨）
+- [ ] `LINE_CHANNEL_ACCESS_TOKEN`が設定されているか
+- [ ] `LINE_CHANNEL_SECRET`が設定されているか
+- [ ] Vercelのログでエラーを確認
+- [ ] Google Apps Scriptのログでエラーを確認
+- [ ] フォームのLINEユーザーIDが正しく取得できているか
 
 ---
 
 ## 🆘 それでも解決しない場合
 
-1. **ログの全文を確認**
+1. **Vercelのログを完全に確認**
+   - エラーメッセージをコピー
+   - スタックトレースを確認
 
-   - Vercel Dashboard > Deployments > 最新のデプロイメント > Logs
-   - または Vercel Dashboard > Logs > Runtime Logs
-   - エラーメッセージの全文をコピー
+2. **Google Apps Scriptのログを確認**
+   - エラーメッセージをコピー
+   - 実行時間を確認
 
-2. **設定を確認**
+3. **テスト送信を実行**
+   - `testFormSubmit`関数を手動実行
+   - モックデータでテスト
 
-   - `lib/config.ts`の内容を確認
-   - Vercel Dashboard の環境変数を確認
-
-3. **スプレッドシートの状態を確認**
-   - スプレッドシートが存在するか
-   - スプレッドシートにアクセスできるか
-   - シート名が正しいか
-
----
-
-## 📚 関連ドキュメント
-
-- [VERCEL_ENV_VARIABLES.md](./VERCEL_ENV_VARIABLES.md) - 環境変数の設定方法
-- [SHEET_SETUP.md](./SHEET_SETUP.md) - スプレッドシートの設定方法
+4. **環境変数を再確認**
+   - Vercelの環境変数が正しく設定されているか
+   - 値に余分なスペースや改行がないか

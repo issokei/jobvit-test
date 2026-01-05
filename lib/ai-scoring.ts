@@ -97,12 +97,18 @@ export async function scoreFormAnswersWithAI(
 フォーム回答：
 ${formAnswersText}`;
 
+  // モデル名を取得（gpt-5.2は存在しない可能性があるため、gpt-4o-miniをデフォルトに）
+  const modelName = process.env.OPENAI_MODEL || 'gpt-4o-mini';
   console.log('[AIScoring] Sending request to ChatGPT API...');
+  console.log('[AIScoring] Model:', modelName);
   console.log('[AIScoring] Prompt length:', prompt.length);
+  console.log('[AIScoring] API Key exists:', !!process.env.OPENAI_API_KEY);
 
   try {
+    console.log('[AIScoring] Calling OpenAI API...');
+    const startTime = Date.now();
     const response = await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-5.2',
+      model: modelName,
       messages: [
         {
           role: 'system',
@@ -116,6 +122,8 @@ ${formAnswersText}`;
       temperature: 0.3, // より一貫性のある回答のため低めに設定
       response_format: { type: 'json_object' }, // JSON形式で返答を強制
     });
+    const endTime = Date.now();
+    console.log('[AIScoring] OpenAI API call completed in', endTime - startTime, 'ms');
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
@@ -168,8 +176,20 @@ ${formAnswersText}`;
   } catch (error) {
     console.error('[AIScoring] Error calling ChatGPT API:', error);
     if (error instanceof Error) {
+      console.error('[AIScoring] Error name:', error.name);
       console.error('[AIScoring] Error message:', error.message);
       console.error('[AIScoring] Error stack:', error.stack);
+      
+      // OpenAI APIのエラーの詳細を確認
+      if ('status' in error) {
+        console.error('[AIScoring] Error status:', (error as any).status);
+      }
+      if ('code' in error) {
+        console.error('[AIScoring] Error code:', (error as any).code);
+      }
+      if ('response' in error) {
+        console.error('[AIScoring] Error response:', JSON.stringify((error as any).response, null, 2));
+      }
     }
     throw error;
   }
