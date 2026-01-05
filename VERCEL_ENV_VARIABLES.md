@@ -48,6 +48,15 @@
 
 **重要**: `GOOGLE_PRIVATE_KEY`は改行文字`\n`を含む必要があります。JSON ファイルからそのままコピーしてください。
 
+### 4. OpenAI API 設定（採点機能用）
+
+| 環境変数名       | 説明                         | 取得方法                                                                                   |
+| ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------ |
+| `OPENAI_API_KEY` | OpenAI API キー              | [OpenAI Platform](https://platform.openai.com/api-keys) > API Keys > Create new secret key |
+| `OPENAI_MODEL`   | 使用するモデル（オプション） | デフォルト: `gpt-5.2`（`gpt-4o`, `gpt-4-turbo`なども使用可能）                             |
+
+**重要**: ChatGPT API を使った採点機能を使用する場合は、`OPENAI_API_KEY`が必須です。
+
 ---
 
 ## ⚠️ コード内で設定済み（環境変数不要）
@@ -96,6 +105,7 @@ LINE_CHANNEL_SECRET=your_channel_secret
 REDIS_URL=redis://default:password@host:port
 GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@project.iam.gserviceaccount.com
 GOOGLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
+OPENAI_API_KEY=sk-...
 ```
 
 ### オプション環境変数（必要に応じて）
@@ -122,6 +132,8 @@ EVENT_HERO_IMAGE_URL=https://example.com/image.jpg
 - [ ] `REDIS_URL`または`LINE_REDIS_URL`が設定されている
 - [ ] `GOOGLE_SERVICE_ACCOUNT_EMAIL`が設定されている
 - [ ] `GOOGLE_PRIVATE_KEY`が設定されている（改行文字`\n`を含む）
+- [ ] `OPENAI_API_KEY`が設定されている（採点機能を使用する場合）
+- [ ] `OPENAI_API_KEY`が設定されている（採点機能を使用する場合）
 
 ### オプション環境変数（必要に応じて）
 

@@ -475,3 +475,241 @@ function createEventFlexBubble(userId: string) {
 //   };
 // }
 
+/**
+ * 採点結果を表示するFlexメッセージを作成
+ */
+export function createScoringResultMessage(
+  totalPoints: number,
+  maxPoints: number,
+  percentage: number,
+  grade: string,
+  feedback: string,
+  details: Array<{ questionTitle: string; userAnswer: string; points: number; maxPoints: number; feedback: string }>
+) {
+  // 評価に応じた色とメッセージを設定
+  let gradeColor = '#666666';
+  let gradeMessage = '';
+  
+  switch (grade) {
+    case 'S':
+      gradeColor = '#FFD700';
+      gradeMessage = '素晴らしい！完璧です！';
+      break;
+    case 'A':
+      gradeColor = '#4CAF50';
+      gradeMessage = '優秀です！';
+      break;
+    case 'B':
+      gradeColor = '#2196F3';
+      gradeMessage = '良好です！';
+      break;
+    case 'C':
+      gradeColor = '#FF9800';
+      gradeMessage = 'もう少し頑張りましょう！';
+      break;
+    case 'D':
+      gradeColor = '#F44336';
+      gradeMessage = '復習が必要です';
+      break;
+    default:
+      gradeMessage = '採点が完了しました';
+  }
+
+  // 詳細を表示するためのコンテンツを作成
+  const detailContents: any[] = [];
+  
+  details.forEach((detail, index) => {
+    if (index > 0) {
+      detailContents.push({
+        type: 'separator' as const,
+        margin: 'md' as const,
+        color: '#E0E0E0',
+      });
+    }
+    
+    const isCorrect = detail.points === detail.maxPoints;
+    
+    detailContents.push({
+      type: 'box' as const,
+      layout: 'vertical' as const,
+      spacing: 'xs' as const,
+      contents: [
+        {
+          type: 'text' as const,
+          text: `Q${index + 1}: ${detail.questionTitle.substring(0, 50)}${detail.questionTitle.length > 50 ? '...' : ''}`,
+          size: 'sm' as const,
+          color: '#666666',
+          wrap: true,
+        },
+        {
+          type: 'box' as const,
+          layout: 'horizontal' as const,
+          spacing: 'sm' as const,
+          contents: [
+            {
+              type: 'text' as const,
+              text: `あなたの回答: ${detail.userAnswer || '（未回答）'}`,
+              size: 'xs' as const,
+              color: '#999999',
+              flex: 1,
+              wrap: true,
+            },
+            {
+              type: 'text' as const,
+              text: isCorrect ? '✓' : '✗',
+              size: 'sm' as const,
+              color: isCorrect ? '#4CAF50' : '#F44336',
+              align: 'end' as const,
+            },
+          ],
+        },
+        {
+          type: 'text' as const,
+          text: detail.feedback || '',
+          size: 'xs' as const,
+          color: '#666666',
+          wrap: true,
+          margin: 'xs' as const,
+        },
+        {
+          type: 'text' as const,
+          text: `${detail.points}/${detail.maxPoints}点`,
+          size: 'xs' as const,
+          color: isCorrect ? '#4CAF50' : '#F44336',
+          align: 'end' as const,
+        },
+      ],
+      margin: 'sm' as const,
+    });
+  });
+
+  return {
+    type: 'flex' as const,
+    altText: `採点結果: ${totalPoints}/${maxPoints}点 (${percentage}%)`,
+    contents: {
+      type: 'bubble' as const,
+      header: {
+        type: 'box' as const,
+        layout: 'vertical' as const,
+        contents: [
+          {
+            type: 'text' as const,
+            text: '採点結果',
+            weight: 'bold' as const,
+            size: 'xl' as const,
+            color: '#FFFFFF',
+            align: 'center' as const,
+          },
+        ],
+        backgroundColor: gradeColor,
+        paddingAll: '20px',
+      },
+      body: {
+        type: 'box' as const,
+        layout: 'vertical' as const,
+        contents: [
+          {
+            type: 'box' as const,
+            layout: 'vertical' as const,
+            spacing: 'md' as const,
+            contents: [
+              {
+                type: 'text' as const,
+                text: gradeMessage,
+                size: 'lg' as const,
+                weight: 'bold' as const,
+                color: '#333333',
+                align: 'center' as const,
+              },
+              {
+                type: 'box' as const,
+                layout: 'horizontal' as const,
+                contents: [
+                  {
+                    type: 'text' as const,
+                    text: `${totalPoints}`,
+                    size: '3xl' as const,
+                    weight: 'bold' as const,
+                    color: gradeColor,
+                    flex: 0,
+                  },
+                  {
+                    type: 'text' as const,
+                    text: ` / ${maxPoints}点`,
+                    size: 'xl' as const,
+                    color: '#666666',
+                    flex: 0,
+                  },
+                ],
+                justifyContent: 'center' as const,
+              },
+              {
+                type: 'text' as const,
+                text: `正答率: ${percentage}%`,
+                size: 'md' as const,
+                color: '#666666',
+                align: 'center' as const,
+              },
+              {
+                type: 'box' as const,
+                layout: 'horizontal' as const,
+                contents: [
+                  {
+                    type: 'text' as const,
+                    text: `評価: `,
+                    size: 'md' as const,
+                    color: '#666666',
+                    flex: 0,
+                  },
+                  {
+                    type: 'text' as const,
+                    text: grade,
+                    size: '2xl' as const,
+                    weight: 'bold' as const,
+                    color: gradeColor,
+                    flex: 0,
+                  },
+                ],
+                justifyContent: 'center' as const,
+              },
+              ...(feedback ? [
+                {
+                  type: 'separator' as const,
+                  margin: 'md' as const,
+                  color: '#E0E0E0',
+                },
+                {
+                  type: 'text' as const,
+                  text: feedback,
+                  size: 'sm' as const,
+                  color: '#333333',
+                  wrap: true,
+                  margin: 'md' as const,
+                },
+              ] : []),
+            ],
+            paddingAll: '20px',
+          },
+          ...(details.length > 0 ? [
+            {
+              type: 'separator' as const,
+              margin: 'md' as const,
+              color: '#E0E0E0',
+            },
+            {
+              type: 'text' as const,
+              text: '詳細',
+              size: 'md' as const,
+              weight: 'bold' as const,
+              color: '#333333',
+              margin: 'md' as const,
+            },
+            ...detailContents,
+          ] : []),
+        ],
+        paddingAll: '20px',
+      },
+    },
+  };
+}
+

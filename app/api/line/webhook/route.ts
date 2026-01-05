@@ -222,22 +222,10 @@ async function handleEvent(event: WebhookEvent, client: Client) {
         return;
       }
 
-      // アンケート機能を無効化したためコメントアウト
-      // const state = await getState(userId);
-      // console.log('[handleEvent] Current state:', state);
-      // await handleMessage(text, userId, replyToken, state, client);
-      
-      // アンケートなしの場合、done状態のガイドメッセージを送信
-      const state = await getState(userId);
-      if (state && state.step === 'done') {
-        await client.replyMessage(
-          replyToken,
-          createGuideFlex(
-            'ありがとうございます。',
-            'イベント情報を見るには「イベント情報」と送信してください。'
-          )
-        );
-      }
+      // ES評価機能
+      const { handleESReviewMessage } = await import('./es-review-handler');
+      await handleESReviewMessage(text, userId, replyToken, client);
+      return;
     }
   }
 }
