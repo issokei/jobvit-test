@@ -165,17 +165,24 @@ export async function POST(request: NextRequest) {
         console.error('[FormSubmit] Original error:', errorObj.originalError);
       }
       if (errorObj.response) {
-        console.error('[FormSubmit] Error response:', JSON.stringify(errorObj.response, null, 2));
+        console.error('[FormSubmit] Error response status:', errorObj.response.status);
+        console.error('[FormSubmit] Error response headers:', JSON.stringify(errorObj.response.headers, null, 2));
         if (errorObj.response.data) {
           console.error('[FormSubmit] Error response data:', JSON.stringify(errorObj.response.data, null, 2));
-          if (errorObj.response.data.details) {
-            console.error('[FormSubmit] Error details:', JSON.stringify(errorObj.response.data.details, null, 2));
+          if (errorObj.response.data.details && Array.isArray(errorObj.response.data.details)) {
+            console.error('[FormSubmit] Error details count:', errorObj.response.data.details.length);
             // エラーの詳細を解析
             errorObj.response.data.details.forEach((detail: any, index: number) => {
               console.error(`[FormSubmit] Error detail ${index}:`, JSON.stringify(detail, null, 2));
             });
+          } else {
+            console.error('[FormSubmit] No details array found in error response');
           }
+        } else {
+          console.error('[FormSubmit] No data in error response');
         }
+      } else {
+        console.error('[FormSubmit] No response object in error');
       }
       if (errorObj.config) {
         console.error('[FormSubmit] Error config:', JSON.stringify(errorObj.config, null, 2));

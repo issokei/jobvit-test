@@ -515,68 +515,38 @@ export function createScoringResultMessage(
       gradeMessage = '採点が完了しました';
   }
 
-  // 詳細を表示するためのコンテンツを作成（最大5件まで表示）
+  // 詳細を表示するためのコンテンツを作成（最大3件まで表示して簡略化）
   const detailContents: any[] = [];
-  const maxDetails = Math.min(details.length, 5);
+  const maxDetails = Math.min(details.length, 3);
   
   for (let index = 0; index < maxDetails; index++) {
     const detail = details[index];
     if (index > 0) {
       detailContents.push({
         type: 'separator' as const,
-        margin: 'md' as const,
+        margin: 'sm' as const,
         color: '#E0E0E0',
       });
     }
     
     const isCorrect = detail.points === detail.maxPoints;
     
-    // テキストの長さを制限（LINEの制限: 2000文字）
-    const questionTitle = detail.questionTitle.substring(0, 40);
-    const userAnswer = (detail.userAnswer || '（未回答）').substring(0, 100);
-    const feedbackText = (detail.feedback || '').substring(0, 150);
+    // テキストの長さを制限（LINEの制限に合わせて短く）
+    const questionTitle = detail.questionTitle.substring(0, 30);
+    const userAnswer = (detail.userAnswer || '（未回答）').substring(0, 50);
     
     detailContents.push({
       type: 'box' as const,
-      layout: 'vertical' as const,
-      spacing: 'xs' as const,
+      layout: 'horizontal' as const,
+      spacing: 'sm' as const,
       contents: [
         {
           type: 'text' as const,
-          text: `Q${index + 1}: ${questionTitle}${detail.questionTitle.length > 40 ? '...' : ''}`,
-          size: 'sm' as const,
-          color: '#666666',
-          wrap: true,
-        },
-        {
-          type: 'box' as const,
-          layout: 'horizontal' as const,
-          spacing: 'sm' as const,
-          contents: [
-            {
-              type: 'text' as const,
-              text: `回答: ${userAnswer}${userAnswer.length >= 100 ? '...' : ''}`,
-              size: 'xs' as const,
-              color: '#999999',
-              flex: 1,
-              wrap: true,
-            },
-            {
-              type: 'text' as const,
-              text: isCorrect ? '✓' : '✗',
-              size: 'sm' as const,
-              color: isCorrect ? '#4CAF50' : '#F44336',
-              align: 'end' as const,
-            },
-          ],
-        },
-        {
-          type: 'text' as const,
-          text: feedbackText || 'フィードバックなし',
+          text: `Q${index + 1}: ${questionTitle}${detail.questionTitle.length > 30 ? '...' : ''}`,
           size: 'xs' as const,
           color: '#666666',
+          flex: 1,
           wrap: true,
-          margin: 'xs' as const,
         },
         {
           type: 'text' as const,
@@ -584,17 +554,18 @@ export function createScoringResultMessage(
           size: 'xs' as const,
           color: isCorrect ? '#4CAF50' : '#F44336',
           align: 'end' as const,
+          flex: 0,
         },
       ],
-      margin: 'sm' as const,
+      margin: 'xs' as const,
     });
   }
   
-  // 詳細が5件を超える場合は、残りの件数を表示
+  // 詳細が3件を超える場合は、残りの件数を表示
   if (details.length > maxDetails) {
     detailContents.push({
       type: 'separator' as const,
-      margin: 'md' as const,
+      margin: 'sm' as const,
       color: '#E0E0E0',
     });
     detailContents.push({
@@ -603,7 +574,7 @@ export function createScoringResultMessage(
       size: 'xs' as const,
       color: '#999999',
       align: 'center' as const,
-      margin: 'md' as const,
+      margin: 'sm' as const,
     });
   }
 
@@ -672,7 +643,7 @@ export function createScoringResultMessage(
               },
               {
                 type: 'text' as const,
-                text: `正答率: ${percentage}%`,
+                text: `正答率: ${percentage.toFixed(1)}%`,
                 size: 'md' as const,
                 color: '#666666',
                 align: 'center' as const,

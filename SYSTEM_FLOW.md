@@ -1,6 +1,6 @@
 # LINE Bot システム動作フロー詳細
 
-## 📱 ユーザーがLINE Botを友だち追加した時
+## 📱 ユーザーが LINE Bot を友だち追加した時
 
 ### 1. イベント受信（`/api/line/webhook`）
 
@@ -13,61 +13,74 @@ POST /api/line/webhook
 ```
 
 **処理内容:**
-- LINE Platformから`follow`イベントを受信
+
+- LINE Platform から`follow`イベントを受信
 - リクエストの署名を検証（`validateSignature`）
 - イベントタイプを判定
 
 ### 2. 友だち追加処理（`handleFollow`関数）
 
 #### Step 1: 状態のクリア
+
 ```typescript
 await clearState(userId);
 ```
-- Redisから既存のユーザー状態を削除
+
+- Redis から既存のユーザー状態を削除
 - エラーが発生しても続行（ログに警告を記録）
 
 #### Step 2: 完了状態の設定
+
 ```typescript
-await saveState(userId, { step: 'done', answers: {} });
+await saveState(userId, { step: "done", answers: {} });
 ```
-- Redisにユーザー状態を保存
+
+- Redis にユーザー状態を保存
 - `step: 'done'` - アンケート完了状態
 - `answers: {}` - 空の回答オブジェクト
-- エラーが発生しても続行（Redis接続エラーの場合でもイベントカードは送信）
+- エラーが発生しても続行（Redis 接続エラーの場合でもイベントカードは送信）
 
-#### Step 3: イベントカード（Flexメッセージ）の作成
+#### Step 3: イベントカード（Flex メッセージ）の作成
+
 ```typescript
 const eventMessage = createEventFlexMessage(userId);
 ```
 
 **作成される内容:**
-- **タイプ**: Flexメッセージ（カルーセル形式）
-- **内容**:
-  - イベントタイトル: 「【28卒限定】関西インターンEXPO 2026 vol.1」
-  - 会場: グランフロント大阪
-  - 日時: 2026年1月11日（土）10:00-17:00
-  - 応募ボタン: Googleフォームへのリンク（LINEユーザーID自動入力）
 
-**フォームURL生成:**
+- **タイプ**: Flex メッセージ（カルーセル形式）
+- **内容**:
+  - イベントタイトル: 「【28 卒限定】関西インターン EXPO 2026 vol.1」
+  - 会場: グランフロント大阪
+  - 日時: 2026 年 1 月 11 日（土）10:00-17:00
+  - 応募ボタン: Google フォームへのリンク（LINE ユーザー ID 自動入力）
+
+**フォーム URL 生成:**
+
 ```typescript
 const applyUrl = createPrefilledFormUrl(userId, 0);
 ```
-- `userId`をGoogleフォームのURLパラメータに埋め込み
-- フォームを開くと、LINEユーザーIDが自動入力される
+
+- `userId`を Google フォームの URL パラメータに埋め込み
+- フォームを開くと、LINE ユーザー ID が自動入力される
 
 #### Step 4: プッシュメッセージの送信
+
 ```typescript
 await client.pushMessage(userId, eventMessage);
 ```
-- LINE Messaging APIを使用してプッシュメッセージを送信
+
+- LINE Messaging API を使用してプッシュメッセージを送信
 - ユーザーにイベントカードが表示される
 
 #### Step 5: アナリティクスのトラッキング
+
 ```typescript
 track('line_friend_added', { userId: ... });
 track('event_info_viewed', { userId: ... });
 ```
-- Vercel Analyticsでイベントを記録
+
+- Vercel Analytics でイベントを記録
 - エラーが発生しても続行（メイン処理には影響しない）
 
 ---
@@ -89,12 +102,14 @@ handleEvent(event, client)
 ### 2. メッセージタイプの判定
 
 **テキストメッセージの場合:**
+
 - `event.type === 'message'`
 - `message.type === 'text'`
 
 ### 3. コマンド処理
 
-#### パターンA: 「次回イベントに応募する」
+#### パターン A: 「次回イベントに応募する」
+
 ```
 text === '次回イベントに応募する'
     ↓
@@ -103,7 +118,8 @@ text === '次回イベントに応募する'
 状態を'done'に設定
 ```
 
-#### パターンB: 「イベント情報」または「イベント情報を表示する」
+#### パターン B: 「イベント情報」または「イベント情報を表示する」
+
 ```
 text === 'イベント情報' || text === 'イベント情報を表示する'
     ↓
@@ -114,7 +130,8 @@ text === 'イベント情報' || text === 'イベント情報を表示する'
 状態を'done'に設定
 ```
 
-#### パターンC: その他のテキスト
+#### パターン C: その他のテキスト
+
 ```
 Googleフォーム採点機能を呼び出し
     ↓
@@ -123,11 +140,12 @@ handleFormScoringMessage(text, userId, replyToken, client)
 
 ---
 
-## 📊 Googleフォーム採点機能（`handleFormScoringMessage`）
+## 📊 Google フォーム採点機能（`handleFormScoringMessage`）
 
 ### 1. コマンドチェック
 
 **「ヘルプ」コマンド:**
+
 ```
 text === 'ヘルプ' || 'help' || '?' || '？' || '使い方'
     ↓
@@ -141,11 +159,13 @@ const formData = parseTextToFormData(text);
 ```
 
 **変換ルール:**
-- `Q1. 質問1` → 質問タイトル: "質問1"
+
+- `Q1. 質問1` → 質問タイトル: "質問 1"
 - `回答: 回答内容` → 回答: ["回答内容"]
 - 複数行の回答は結合される
 
 **例:**
+
 ```
 入力:
 Q1. あなたの強みは何ですか？
@@ -164,25 +184,28 @@ Q2. 志望動機を教えてください
 ### 3. フォームデータの検証
 
 **空の場合:**
+
 ```
 formData が空
     ↓
 フォーム形式の説明メッセージを返信
 ```
 
-### 4. AI採点の実行
+### 4. AI 採点の実行
 
 ```typescript
 const scoringResult = await scoreFormAnswersWithAI(formData);
 ```
 
 **処理内容:**
+
 1. OpenAI API（gpt-5.2）を呼び出し
 2. フォーム回答をプロンプトに変換
 3. 採点指示を送信
-4. JSON形式で採点結果を受信
+4. JSON 形式で採点結果を受信
 
 **採点結果の構造:**
+
 ```typescript
 {
   totalPoints: 85,        // 合計点
@@ -203,7 +226,7 @@ const scoringResult = await scoreFormAnswersWithAI(formData);
 }
 ```
 
-### 5. 採点結果をLINEに送信
+### 5. 採点結果を LINE に送信
 
 ```typescript
 const scoringMessage = createScoringResultMessage(...);
@@ -211,16 +234,17 @@ await client.replyMessage(replyToken, scoringMessage);
 ```
 
 **送信される内容:**
-- Flexメッセージ形式の採点結果
+
+- Flex メッセージ形式の採点結果
 - 合計点、正答率、評価（S/A/B/C/D）
 - 各質問の詳細（得点、フィードバック）
 - 評価に応じた色分け（S: 金色、A: 緑、B: 青、C: オレンジ、D: 赤）
 
 ---
 
-## 📋 Googleフォームから提出された時
+## 📋 Google フォームから提出された時
 
-### 1. Google Apps Scriptのトリガー
+### 1. Google Apps Script のトリガー
 
 ```
 ユーザーがGoogleフォームを提出
@@ -229,13 +253,14 @@ Google Apps Script の onFormSubmit 関数が実行
 ```
 
 **処理内容:**
-1. フォーム回答を取得（`e.namedValues`）
-2. LINEユーザーIDを抽出
-   - 質問タイトル: "LINEユーザーID（自動入力）"
-   - または他のパターン（"LINEユーザーID", "ユーザーID"など）
-3. Next.js APIを呼び出し
 
-### 2. Next.js API呼び出し（`/api/line/form-submit`）
+1. フォーム回答を取得（`e.namedValues`）
+2. LINE ユーザー ID を抽出
+   - 質問タイトル: "LINE ユーザー ID（自動入力）"
+   - または他のパターン（"LINE ユーザー ID", "ユーザー ID"など）
+3. Next.js API を呼び出し
+
+### 2. Next.js API 呼び出し（`/api/line/form-submit`）
 
 ```typescript
 POST /api/line/form-submit
@@ -254,22 +279,25 @@ POST /api/line/form-submit
 ```typescript
 await saveFormSubmission(userId, formData);
 ```
+
 - 現在は何もしない（コメントアウトされた機能）
 
-### 4. AI採点の実行
+### 4. AI 採点の実行
 
 ```typescript
 const scoringResult = await scoreFormAnswersWithAI(formData);
 ```
-- LINE Botに直接送信した場合と同じ採点ロジック
 
-### 5. LINE Botに採点結果を送信
+- LINE Bot に直接送信した場合と同じ採点ロジック
+
+### 5. LINE Bot に採点結果を送信
 
 ```typescript
 const client = getLineClient();
 const scoringMessage = createScoringResultMessage(...);
 await client.pushMessage(userId, scoringMessage);
 ```
+
 - プッシュメッセージとして送信（ユーザーがメッセージを送信しなくても自動的に送信される）
 
 ---
@@ -352,9 +380,11 @@ await client.pushMessage(userId, scoringMessage);
 ### Redis（ユーザー状態管理）
 
 **キー形式:**
+
 - `line:user_state:{userId}` - ユーザーの状態
 
 **保存されるデータ:**
+
 ```typescript
 {
   step: 'done',
@@ -363,6 +393,7 @@ await client.pushMessage(userId, scoringMessage);
 ```
 
 **用途:**
+
 - ユーザーの状態を追跡
 - アンケートの進捗管理（現在は使用されていない）
 - セッション管理
@@ -371,32 +402,37 @@ await client.pushMessage(userId, scoringMessage);
 
 ## 🔍 エラーハンドリング
 
-### 1. Redis接続エラー
+### 1. Redis 接続エラー
+
 - ログに警告を記録
 - メイン処理は続行（イベントカードは送信される）
 
-### 2. LINE APIエラー
+### 2. LINE API エラー
+
 - エラーログを記録
 - エラーメッセージをユーザーに返信
 
-### 3. OpenAI APIエラー
+### 3. OpenAI API エラー
+
 - エラーログを記録
 - ユーザーにエラーメッセージを返信
 - リトライは実装されていない（必要に応じて追加可能）
 
-### 4. Google Apps Scriptエラー
-- Apps Scriptのログに記録
-- Next.js APIにエラー情報を送信
-- ユーザーには通知されない（Apps Script側で処理）
+### 4. Google Apps Script エラー
+
+- Apps Script のログに記録
+- Next.js API にエラー情報を送信
+- ユーザーには通知されない（Apps Script 側で処理）
 
 ---
 
 ## 📈 アナリティクス
 
-### Vercel Analyticsで追跡されるイベント
+### Vercel Analytics で追跡されるイベント
 
 1. **`line_friend_added`**
-   - ユーザーがBotを友だち追加した時
+
+   - ユーザーが Bot を友だち追加した時
    - データ: `{ userId: "..." }`
 
 2. **`event_info_viewed`**
@@ -407,28 +443,31 @@ await client.pushMessage(userId, scoringMessage);
 
 ## 🔐 セキュリティ
 
-### 1. Webhook署名検証
+### 1. Webhook 署名検証
+
 ```typescript
-validateSignature(body, channelSecret, signature)
+validateSignature(body, channelSecret, signature);
 ```
-- LINE Platformからのリクエストか検証
+
+- LINE Platform からのリクエストか検証
 - 不正なリクエストを拒否
 
 ### 2. 環境変数
-- 機密情報は環境変数で管理
-- Vercelの環境変数設定を使用
 
-### 3. ユーザーIDの保護
+- 機密情報は環境変数で管理
+- Vercel の環境変数設定を使用
+
+### 3. ユーザー ID の保護
+
 - ログには一部のみ表示（`userId.substring(0, 10) + '...'`）
-- 完全なユーザーIDはログに記録されない
+- 完全なユーザー ID はログに記録されない
 
 ---
 
 ## 🎯 まとめ
 
-1. **友だち追加時**: イベントカードを自動送信、LINEユーザーIDを自動取得
-2. **メッセージ送信時**: Googleフォーム形式の回答を採点して結果を返信
-3. **フォーム提出時**: Google Apps Script経由で自動採点、LINEに結果を送信
-4. **状態管理**: Redisでユーザー状態を管理
+1. **友だち追加時**: イベントカードを自動送信、LINE ユーザー ID を自動取得
+2. **メッセージ送信時**: Google フォーム形式の回答を採点して結果を返信
+3. **フォーム提出時**: Google Apps Script 経由で自動採点、LINE に結果を送信
+4. **状態管理**: Redis でユーザー状態を管理
 5. **エラーハンドリング**: 各段階でエラーを適切に処理
-
