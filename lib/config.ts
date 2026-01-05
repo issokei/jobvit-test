@@ -38,8 +38,8 @@ export const FORM_CONFIGS: FormConfig[] = [
   //   entryUserId: "YOUR_ENTRY_ID"
   // },
     {
-      baseUrl: "https://docs.google.com/forms/d/e/1FAIpQLSfFX-uzmL_HqcnEYsRzdqKoH0yOoBqdq9Zsvh7FV1ioozopBA/viewform",
-      entryUserId: "1797257642"  // イベント1のEntry ID
+      baseUrl: "https://docs.google.com/forms/d/e/1FAIpQLScE8ZUsI2-n4T_JTLHKqwamgNCZm_BkG56VtTzuPwiY9xk1QA/viewform",
+      entryUserId: "784163745"  // イベント1のEntry ID
     }
 ];
 
@@ -70,8 +70,8 @@ export interface SheetConfig {
  */
 export const SHEET_CONFIGS: SheetConfig[] = [
   {
-    spreadsheetId: "1edatXCNj9UJX8iD35qhT8L8DecT64TbGyTObutWyrp0",
-    sheetName: "学生アンケート"
+    spreadsheetId: "1r6gIqF_mKlmZ6WhcyOBQ0ktCd86IwSPSm5cVuAUr6qg",
+    sheetName: "フォームの回答１"
   }
 ];
 
