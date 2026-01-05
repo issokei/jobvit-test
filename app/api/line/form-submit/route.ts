@@ -118,33 +118,30 @@ export async function POST(request: NextRequest) {
       const client = getLineClient();
       console.log('[FormSubmit] LINE client created successfully');
       
-      console.log('[FormSubmit] Creating scoring message...');
-      // シンプルなメッセージを使用（horizontalレイアウトの問題を回避）
-      const scoringMessage = createSimpleScoringResultMessage(
-        scoringResult.totalPoints,
-        scoringResult.maxPoints,
-        scoringResult.percentage,
-        scoringResult.grade,
-        scoringResult.feedback || ''
-      );
-      console.log('[FormSubmit] Scoring message created successfully');
-      console.log('[FormSubmit] Message type:', scoringMessage.type);
-      console.log('[FormSubmit] Message altText:', scoringMessage.altText);
+      // テキストメッセージで採点結果を送信（確実に届くように）
+      console.log('[FormSubmit] Creating text message...');
+      const textMessage = `📊 採点結果
+
+✅ 合計点: ${scoringResult.totalPoints}/${scoringResult.maxPoints}点
+📈 正答率: ${scoringResult.percentage.toFixed(1)}%
+🎯 評価: ${scoringResult.grade}
+
+${scoringResult.feedback || ''}
+
+お疲れ様でした！`;
 
       console.log('[FormSubmit] Sending scoring result to LINE...');
       console.log('[FormSubmit] UserId:', userId);
       console.log('[FormSubmit] UserId length:', userId.length);
       
       const sendStartTime = Date.now();
-      const pushResult = await Promise.race([
-        client.pushMessage(userId, scoringMessage),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('LINE API timeout after 30 seconds')), 30000)
-        )
-      ]) as any;
+      const pushResult = await client.pushMessage(userId, {
+        type: 'text',
+        text: textMessage,
+      });
       const sendEndTime = Date.now();
       
-      console.log('[FormSubmit] Scoring result sent successfully');
+      console.log('[FormSubmit] Scoring result sent successfully via text');
       console.log('[FormSubmit] Send time:', sendEndTime - sendStartTime, 'ms');
       console.log('[FormSubmit] Push message result:', JSON.stringify(pushResult, null, 2));
     } catch (error) {

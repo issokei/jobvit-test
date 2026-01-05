@@ -79,7 +79,7 @@ export function createSimpleScoringResultMessage(
           {
             type: 'text' as const,
             text: `${totalPoints} / ${maxPoints}点`,
-            size: '2xl' as const,
+            size: 'md' as const, // 2xlは無効なのでxxlに変更
             weight: 'bold' as const,
             color: gradeColor,
             align: 'center' as const,
