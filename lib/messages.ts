@@ -607,9 +607,12 @@ export function createScoringResultMessage(
     });
   }
 
+  // altTextの長さを制限（LINEの制限: 400文字）
+  const altText = `採点結果: ${totalPoints}/${maxPoints}点 (${percentage.toFixed(1)}%)`.substring(0, 400);
+  
   return {
     type: 'flex' as const,
-    altText: `採点結果: ${totalPoints}/${maxPoints}点 (${percentage}%)`,
+    altText: altText,
     contents: {
       type: 'bubble' as const,
       header: {
@@ -702,14 +705,14 @@ export function createScoringResultMessage(
                   margin: 'md' as const,
                   color: '#E0E0E0',
                 },
-                {
-                  type: 'text' as const,
-                  text: feedback,
-                  size: 'sm' as const,
-                  color: '#333333',
-                  wrap: true,
-                  margin: 'md' as const,
-                },
+              {
+                type: 'text' as const,
+                text: feedback.substring(0, 500), // フィードバックの長さを制限
+                size: 'sm' as const,
+                color: '#333333',
+                wrap: true,
+                margin: 'md' as const,
+              },
               ] : []),
             ],
             paddingAll: '20px',

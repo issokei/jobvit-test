@@ -170,6 +170,10 @@ export async function POST(request: NextRequest) {
           console.error('[FormSubmit] Error response data:', JSON.stringify(errorObj.response.data, null, 2));
           if (errorObj.response.data.details) {
             console.error('[FormSubmit] Error details:', JSON.stringify(errorObj.response.data.details, null, 2));
+            // エラーの詳細を解析
+            errorObj.response.data.details.forEach((detail: any, index: number) => {
+              console.error(`[FormSubmit] Error detail ${index}:`, JSON.stringify(detail, null, 2));
+            });
           }
         }
       }
