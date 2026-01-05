@@ -1,20 +1,21 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import { Analytics } from "@vercel/analytics/react";
 
-export const metadata: Metadata = {
-  title: 'Jobvit Test',
-  description: 'Next.js and React application',
-}
+export const metadata = {
+  title: "インターンEXPO LINE Bot",
+  description: "インターンEXPO公式LINE Bot",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
-  )
+  );
 }
-

@@ -1,11 +1,11 @@
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
-        <h1 className="text-4xl font-bold mb-4">Next.js + React アプリケーション</h1>
-        <p className="text-lg">セットアップが完了しました！</p>
-      </div>
+    <main style={{ padding: "2rem", fontFamily: "system-ui" }}>
+      <h1>インターンEXPO 公式LINE Bot</h1>
+      <p>LINE Bot Webhook API が正常に動作しています。</p>
+      <p>
+        Webhook URL: <code>/api/line/webhook</code>
+      </p>
     </main>
-  )
+  );
 }
-
