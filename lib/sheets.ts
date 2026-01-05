@@ -347,6 +347,8 @@ async function saveProfileToSingleSheet(
   }
 }
 
+// アンケート機能を無効化したためコメントアウト
+/*
 export async function saveProfileToSheet(
   userId: string,
   answers: UserAnswers
@@ -393,6 +395,7 @@ export async function saveProfileToSheet(
     throw error;
   }
 }
+*/
 
 export async function saveFormSubmission(
   userId: string,

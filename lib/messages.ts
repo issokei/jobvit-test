@@ -1,13 +1,14 @@
-import { Question } from './types';
+// アンケート機能を無効化したためコメントアウト
+// import { Question } from './types';
 import { createPrefilledFormUrl } from './sheets';
 
-export function buildQuestionFlex(q: Question) {
-  return {
-    type: 'flex' as const,
-    altText: q.title,
-    contents: createOrangeBubble(q.title, q.subtitle, q.options),
-  };
-}
+// export function buildQuestionFlex(q: Question) {
+//   return {
+//     type: 'flex' as const,
+//     altText: q.title,
+//     contents: createOrangeBubble(q.title, q.subtitle, q.options),
+//   };
+// }
 
 export function createGuideFlex(title: string, subtitle: string) {
   return {
@@ -94,6 +95,8 @@ function createOrangeBubble(title: string, subtitle: string, options: string[]) 
   };
 }
 
+// アンケート機能を無効化したためコメントアウト
+/*
 export function createSurveyCompletePanel() {
   return {
     type: 'flex' as const,
@@ -195,6 +198,7 @@ export function createSurveyCompletePanel() {
     },
   };
 }
+*/
 
 export function createEventFlexMessage(userId: string) {
   return {

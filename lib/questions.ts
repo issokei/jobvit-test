@@ -1,3 +1,5 @@
+// アンケート機能を無効化したためコメントアウト
+/*
 import { Question } from './types';
 
 export const QUESTIONS: Question[] = [
@@ -44,4 +46,8 @@ export const QUESTIONS: Question[] = [
     options: [],
   },
 ];
+*/
+
+// アンケート機能を無効化したため、空の配列をエクスポート
+export const QUESTIONS: any[] = [];
 

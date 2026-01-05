@@ -1,6 +1,6 @@
-# Vercel環境変数設定ガイド
+# Vercel 環境変数設定ガイド
 
-現在のコードでVercelに設定しなければいけない環境変数の一覧です。
+現在のコードで Vercel に設定しなければいけない環境変数の一覧です。
 
 ---
 
@@ -8,45 +8,45 @@
 
 以下の環境変数は**必須**です。設定しないとアプリケーションが動作しません。
 
-### 1. LINE Bot設定
+### 1. LINE Bot 設定
 
-| 環境変数名 | 説明 | 取得方法 |
-|-----------|------|---------|
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINEチャネルアクセストークン | [LINE Developers Console](https://developers.line.biz/console/) > チャネル > Messaging API > チャネルアクセストークン |
-| `LINE_CHANNEL_SECRET` | LINEチャネルシークレット | [LINE Developers Console](https://developers.line.biz/console/) > チャネル > 基本設定 > チャネルシークレット |
+| 環境変数名                  | 説明                          | 取得方法                                                                                                              |
+| --------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE チャネルアクセストークン | [LINE Developers Console](https://developers.line.biz/console/) > チャネル > Messaging API > チャネルアクセストークン |
+| `LINE_CHANNEL_SECRET`       | LINE チャネルシークレット     | [LINE Developers Console](https://developers.line.biz/console/) > チャネル > 基本設定 > チャネルシークレット          |
 
-### 2. Redis設定
+### 2. Redis 設定
 
-| 環境変数名 | 説明 | 取得方法 |
-|-----------|------|---------|
-| `REDIS_URL` または `LINE_REDIS_URL` | Redis接続URL | Vercel Dashboard > Storage > Redis > 接続URL |
+| 環境変数名                          | 説明           | 取得方法                                      |
+| ----------------------------------- | -------------- | --------------------------------------------- |
+| `REDIS_URL` または `LINE_REDIS_URL` | Redis 接続 URL | Vercel Dashboard > Storage > Redis > 接続 URL |
 
-**注意**: どちらか一方を設定すればOKです。両方設定されている場合は`LINE_REDIS_URL`が優先されます。
+**注意**: どちらか一方を設定すれば OK です。両方設定されている場合は`LINE_REDIS_URL`が優先されます。
 
-#### Redisデータベースの作成手順（Vercel）
+#### Redis データベースの作成手順（Vercel）
 
 1. [Vercel Dashboard](https://vercel.com/dashboard)にログイン
 2. プロジェクトを選択
 3. **Storage**タブをクリック
 4. **Create Database**をクリック
 5. **Redis**を選択
-6. プランを選択（無料プランでもOK）
+6. プランを選択（無料プランでも OK）
 7. データベース名を入力（例: `redis-db`）
 8. リージョンを選択（推奨: `Tokyo`）
 9. **Create**をクリック
 
-**重要**: Redisデータベースを作成すると、Vercelが自動的に`REDIS_URL`環境変数を設定します。手動で設定する必要はありません。
+**重要**: Redis データベースを作成すると、Vercel が自動的に`REDIS_URL`環境変数を設定します。手動で設定する必要はありません。
 
-もし自動設定されない場合は、Storageタブで作成したRedisデータベースを開き、**.env.local**セクションに表示されている`REDIS_URL`の値をコピーして、Settings > Environment Variablesに手動で設定してください。
+もし自動設定されない場合は、Storage タブで作成した Redis データベースを開き、**.env.local**セクションに表示されている`REDIS_URL`の値をコピーして、Settings > Environment Variables に手動で設定してください。
 
-### 3. Google Service Account設定
+### 3. Google Service Account 設定
 
-| 環境変数名 | 説明 | 取得方法 |
-|-----------|------|---------|
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | サービスアカウントのメールアドレス | Google Cloud Console > IAMと管理 > サービスアカウント > メールアドレス |
-| `GOOGLE_PRIVATE_KEY` | サービスアカウントのプライベートキー | Google Cloud Console > IAMと管理 > サービスアカウント > キー > JSONキーから`private_key`を取得 |
+| 環境変数名                     | 説明                                 | 取得方法                                                                                         |
+| ------------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | サービスアカウントのメールアドレス   | Google Cloud Console > IAM と管理 > サービスアカウント > メールアドレス                          |
+| `GOOGLE_PRIVATE_KEY`           | サービスアカウントのプライベートキー | Google Cloud Console > IAM と管理 > サービスアカウント > キー > JSON キーから`private_key`を取得 |
 
-**重要**: `GOOGLE_PRIVATE_KEY`は改行文字`\n`を含む必要があります。JSONファイルからそのままコピーしてください。
+**重要**: `GOOGLE_PRIVATE_KEY`は改行文字`\n`を含む必要があります。JSON ファイルからそのままコピーしてください。
 
 ---
 
@@ -72,14 +72,14 @@
 
 以下の環境変数は**オプション**です。設定しなくても動作しますが、設定すると機能が有効になります。
 
-| 環境変数名 | 説明 | デフォルト値 |
-|-----------|------|------------|
-| `EVENT_SITE_URL` | イベントサイトURL | `https://www.intern-expo.com` |
-| `EVENT_HERO_IMAGE_URL` | イベントヒーロー画像URL | なし |
+| 環境変数名             | 説明                     | デフォルト値                  |
+| ---------------------- | ------------------------ | ----------------------------- |
+| `EVENT_SITE_URL`       | イベントサイト URL       | `https://www.intern-expo.com` |
+| `EVENT_HERO_IMAGE_URL` | イベントヒーロー画像 URL | なし                          |
 
 ---
 
-## 📋 Vercel Dashboardでの設定手順
+## 📋 Vercel Dashboard での設定手順
 
 1. [Vercel Dashboard](https://vercel.com/dashboard)にログイン
 2. プロジェクトを選択
@@ -159,5 +159,4 @@ EVENT_HERO_IMAGE_URL=https://example.com/image.jpg
 
 - [CONFIG_GUIDE.md](./CONFIG_GUIDE.md) - コード内での設定方法
 - [ENV_VARIABLES.md](./ENV_VARIABLES.md) - 環境変数の詳細説明
-- [GOOGLE_SETUP.md](./GOOGLE_SETUP.md) - Google Service Accountの設定方法
-
+- [GOOGLE_SETUP.md](./GOOGLE_SETUP.md) - Google Service Account の設定方法

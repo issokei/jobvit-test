@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client, validateSignature, WebhookEvent, MessageEvent } from '@line/bot-sdk';
 import { track } from '@vercel/analytics/server';
-import { QUESTIONS } from '@/lib/questions';
+// import { QUESTIONS } from '@/lib/questions';
 import { getState, saveState, clearState } from '@/lib/kv';
-import { saveProfileToSheet, createPrefilledFormUrl } from '@/lib/sheets';
+import { /* saveProfileToSheet, */ createPrefilledFormUrl } from '@/lib/sheets';
 import {
-  buildQuestionFlex,
+  // buildQuestionFlex,
   createGuideFlex,
-  createSurveyCompletePanel,
+  // createSurveyCompletePanel,
   createEventFlexMessage,
 } from '@/lib/messages';
 
@@ -135,12 +135,12 @@ async function handleEvent(event: WebhookEvent, client: Client) {
         return;
       }
 
-      // start コマンド（保険）
-      if (text.toLowerCase() === 'start') {
-        console.log('[handleEvent] Start command detected');
-        await resetToFirstQuestion(userId, replyToken, client);
-        return;
-      }
+      // start コマンド（保険）- アンケート機能を無効化したためコメントアウト
+      // if (text.toLowerCase() === 'start') {
+      //   console.log('[handleEvent] Start command detected');
+      //   await resetToFirstQuestion(userId, replyToken, client);
+      //   return;
+      // }
 
       // リッチメニューからの次回イベント応募リクエスト
       if (text === '次回イベントに応募する') {
@@ -222,9 +222,22 @@ async function handleEvent(event: WebhookEvent, client: Client) {
         return;
       }
 
+      // アンケート機能を無効化したためコメントアウト
+      // const state = await getState(userId);
+      // console.log('[handleEvent] Current state:', state);
+      // await handleMessage(text, userId, replyToken, state, client);
+      
+      // アンケートなしの場合、done状態のガイドメッセージを送信
       const state = await getState(userId);
-      console.log('[handleEvent] Current state:', state);
-      await handleMessage(text, userId, replyToken, state, client);
+      if (state && state.step === 'done') {
+        await client.replyMessage(
+          replyToken,
+          createGuideFlex(
+            'ありがとうございます。',
+            'イベント情報を見るには「イベント情報」と送信してください。'
+          )
+        );
+      }
     }
   }
 }
@@ -243,48 +256,37 @@ async function handleFollow(userId: string, client: Client) {
       console.warn('[handleFollow] Step 1: Failed to clear state (continuing anyway):', error);
     }
     
-    // 最初の質問を取得（QUESTIONS配列の最初の要素）
-    const firstQuestion = QUESTIONS[0];
-    if (!firstQuestion) {
-      throw new Error('No questions defined');
-    }
-    
-    // 初期状態を設定（エラーが発生しても続行）
-    const init = { step: firstQuestion.step, answers: {} };
+    // 完了状態を設定（アンケートなしでイベントカードを表示）
     try {
-      console.log('[handleFollow] Step 2: Saving initial state...');
-      await saveState(userId, init);
-      console.log('[handleFollow] Step 2: Initial state saved successfully');
+      console.log('[handleFollow] Step 2: Saving done state...');
+      await saveState(userId, { step: 'done', answers: {} });
+      console.log('[handleFollow] Step 2: Done state saved successfully');
     } catch (error) {
-      console.warn('[handleFollow] Step 2: Failed to save initial state (continuing anyway):', error);
-      // Redis接続エラーの場合でも、アンケートは送信する
+      console.warn('[handleFollow] Step 2: Failed to save state (continuing anyway):', error);
+      // Redis接続エラーの場合でも、イベントカードは送信する
     }
     
-    // 最初の質問を取得
-    console.log('[handleFollow] Step 3: Getting first question...');
-    if (!firstQuestion) {
-      throw new Error('First question not found');
-    }
-    console.log('[handleFollow] Step 3: First question found:', firstQuestion.title);
+    // イベントカード（Flexメッセージ）を作成
+    console.log('[handleFollow] Step 3: Creating event flex message...');
+    const eventMessage = createEventFlexMessage(userId);
+    console.log('[handleFollow] Step 3: Event message created');
     
-    // 質問メッセージを作成
-    console.log('[handleFollow] Step 4: Building question message...');
-    const questionMessage = buildQuestionFlex(firstQuestion);
-    console.log('[handleFollow] Step 4: Question message created:', JSON.stringify(questionMessage).substring(0, 100));
-    
-    // プッシュメッセージを送信（これが最も重要）
-    console.log('[handleFollow] Step 5: Sending push message...');
+    // プッシュメッセージを送信
+    console.log('[handleFollow] Step 4: Sending push message...');
     try {
-      const response = await client.pushMessage(userId, questionMessage);
-      console.log('[handleFollow] Step 5: Push message sent successfully!');
-      console.log('[handleFollow] Step 5: Response:', JSON.stringify(response));
+      const response = await client.pushMessage(userId, eventMessage);
+      console.log('[handleFollow] Step 4: Push message sent successfully!');
+      console.log('[handleFollow] Step 4: Response:', JSON.stringify(response));
       
       // Vercel Analyticsでトラッキング
       try {
         track('line_friend_added', {
           userId: userId.substring(0, 10) + '...', // プライバシー保護のため一部のみ
         });
-        console.log('[handleFollow] Analytics event tracked: line_friend_added');
+        track('event_info_viewed', {
+          userId: userId.substring(0, 10) + '...',
+        });
+        console.log('[handleFollow] Analytics events tracked: line_friend_added, event_info_viewed');
       } catch (analyticsError) {
         // トラッキングエラーは無視（メイン処理には影響しない）
         console.warn('[handleFollow] Failed to track analytics event:', analyticsError);
@@ -292,7 +294,7 @@ async function handleFollow(userId: string, client: Client) {
       
       console.log('[handleFollow] ===== SUCCESS =====');
     } catch (error) {
-      console.error('[handleFollow] Step 5: Failed to send push message');
+      console.error('[handleFollow] Step 4: Failed to send push message');
       console.error('[handleFollow] Error:', error);
       if (error instanceof Error) {
         console.error('[handleFollow] Error message:', error.message);
@@ -314,18 +316,21 @@ async function handleFollow(userId: string, client: Client) {
   }
 }
 
-async function resetToFirstQuestion(userId: string, replyToken: string, client: Client) {
-  await clearState(userId);
-  const firstQuestion = QUESTIONS[0];
-  if (!firstQuestion) {
-    throw new Error('No questions defined');
-  }
-  const init = { step: firstQuestion.step, answers: {} };
-  await saveState(userId, init);
+// アンケート機能を無効化したためコメントアウト
+// async function resetToFirstQuestion(userId: string, replyToken: string, client: Client) {
+//   await clearState(userId);
+//   const firstQuestion = QUESTIONS[0];
+//   if (!firstQuestion) {
+//     throw new Error('No questions defined');
+//   }
+//   const init = { step: firstQuestion.step, answers: {} };
+//   await saveState(userId, init);
 
-  await client.replyMessage(replyToken, buildQuestionFlex(firstQuestion));
-}
+//   await client.replyMessage(replyToken, buildQuestionFlex(firstQuestion));
+// }
 
+// アンケート機能を無効化したためコメントアウト
+/*
 async function handleMessage(
   text: string,
   userId: string,
@@ -524,4 +529,5 @@ async function handleMessage(
   
   console.log('[handleMessage] ===== END =====');
 }
+*/
 
