@@ -3,6 +3,7 @@ import { Client } from '@line/bot-sdk';
 import { saveFormSubmission } from '@/lib/sheets';
 import { scoreFormAnswersWithAI } from '@/lib/ai-scoring';
 import { createScoringResultMessage } from '@/lib/messages';
+import { createSimpleScoringResultMessage } from '@/lib/messages-simple';
 
 /**
  * Googleフォーム送信時のWebhookエンドポイント
@@ -118,13 +119,13 @@ export async function POST(request: NextRequest) {
       console.log('[FormSubmit] LINE client created successfully');
       
       console.log('[FormSubmit] Creating scoring message...');
-      const scoringMessage = createScoringResultMessage(
+      // シンプルなメッセージを使用（horizontalレイアウトの問題を回避）
+      const scoringMessage = createSimpleScoringResultMessage(
         scoringResult.totalPoints,
         scoringResult.maxPoints,
         scoringResult.percentage,
         scoringResult.grade,
-        scoringResult.feedback || '',
-        scoringResult.details || []
+        scoringResult.feedback || ''
       );
       console.log('[FormSubmit] Scoring message created successfully');
       console.log('[FormSubmit] Message type:', scoringMessage.type);
@@ -158,34 +159,45 @@ export async function POST(request: NextRequest) {
       
       // LINE SDKのエラーオブジェクトの詳細を確認
       const errorObj = error as any;
-      if (errorObj.statusCode) {
-        console.error('[FormSubmit] Error statusCode:', errorObj.statusCode);
+      
+      // エラーレスポンスを取得（複数のパスを試す）
+      let errorResponse: any = null;
+      let errorData: any = null;
+      
+      // パス1: errorObj.response
+      if (errorObj.response && errorObj.response.data) {
+        errorResponse = errorObj.response;
+        errorData = errorObj.response.data;
+        console.error('[FormSubmit] Found response in errorObj.response');
       }
-      if (errorObj.originalError) {
-        console.error('[FormSubmit] Original error:', errorObj.originalError);
+      // パス2: errorObj.originalError.response
+      else if (errorObj.originalError && (errorObj.originalError as any).response && (errorObj.originalError as any).response.data) {
+        errorResponse = (errorObj.originalError as any).response;
+        errorData = (errorObj.originalError as any).response.data;
+        console.error('[FormSubmit] Found response in errorObj.originalError.response');
       }
-      if (errorObj.response) {
-        console.error('[FormSubmit] Error response status:', errorObj.response.status);
-        console.error('[FormSubmit] Error response headers:', JSON.stringify(errorObj.response.headers, null, 2));
-        if (errorObj.response.data) {
-          console.error('[FormSubmit] Error response data:', JSON.stringify(errorObj.response.data, null, 2));
-          if (errorObj.response.data.details && Array.isArray(errorObj.response.data.details)) {
-            console.error('[FormSubmit] Error details count:', errorObj.response.data.details.length);
-            // エラーの詳細を解析
-            errorObj.response.data.details.forEach((detail: any, index: number) => {
-              console.error(`[FormSubmit] Error detail ${index}:`, JSON.stringify(detail, null, 2));
-            });
-          } else {
-            console.error('[FormSubmit] No details array found in error response');
-          }
-        } else {
-          console.error('[FormSubmit] No data in error response');
+      // パス3: errorObj.originalError.data（直接）
+      else if (errorObj.originalError && (errorObj.originalError as any).data) {
+        errorData = (errorObj.originalError as any).data;
+        console.error('[FormSubmit] Found data in errorObj.originalError.data');
+      }
+      
+      if (errorData) {
+        console.error('[FormSubmit] Error data:', JSON.stringify(errorData, null, 2));
+        if (errorData.details && Array.isArray(errorData.details)) {
+          console.error('[FormSubmit] Error details count:', errorData.details.length);
+          errorData.details.forEach((detail: any, index: number) => {
+            console.error(`[FormSubmit] Error detail ${index}:`, JSON.stringify(detail, null, 2));
+          });
         }
       } else {
-        console.error('[FormSubmit] No response object in error');
-      }
-      if (errorObj.config) {
-        console.error('[FormSubmit] Error config:', JSON.stringify(errorObj.config, null, 2));
+        console.error('[FormSubmit] Could not find error response data');
+        console.error('[FormSubmit] Error object structure:', {
+          hasResponse: !!errorObj.response,
+          hasOriginalError: !!errorObj.originalError,
+          originalErrorHasResponse: !!(errorObj.originalError as any)?.response,
+          originalErrorHasData: !!(errorObj.originalError as any)?.data,
+        });
       }
       
       console.error('[FormSubmit] ======================================');

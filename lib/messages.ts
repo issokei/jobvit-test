@@ -546,7 +546,7 @@ export function createScoringResultMessage(
           size: 'xs' as const,
           color: '#666666',
           flex: 1,
-          wrap: true,
+          // horizontalレイアウトではwrapプロパティを削除（LINEの仕様）
         },
         {
           type: 'text' as const,
