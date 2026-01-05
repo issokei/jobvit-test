@@ -222,9 +222,9 @@ async function handleEvent(event: WebhookEvent, client: Client) {
         return;
       }
 
-      // ES評価機能
-      const { handleESReviewMessage } = await import('./es-review-handler');
-      await handleESReviewMessage(text, userId, replyToken, client);
+      // Googleフォーム採点機能
+      const { handleFormScoringMessage } = await import('./form-scoring-handler');
+      await handleFormScoringMessage(text, userId, replyToken, client);
       return;
     }
   }
