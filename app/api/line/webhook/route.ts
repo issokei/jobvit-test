@@ -3,7 +3,7 @@ import { Client, validateSignature, WebhookEvent, MessageEvent } from '@line/bot
 import { track } from '@vercel/analytics/server';
 // import { QUESTIONS } from '@/lib/questions';
 import { getState, saveState, clearState } from '@/lib/kv';
-import { /* saveProfileToSheet, */ createPrefilledFormUrl } from '@/lib/sheets';
+import { /* saveProfileToSheet, */ createPrefilledFormUrl, createV0FormUrl } from '@/lib/sheets';
 import {
   // buildQuestionFlex,
   createGuideFlex,
@@ -173,6 +173,51 @@ async function handleEvent(event: WebhookEvent, client: Client) {
           });
         } catch (error) {
           console.error('[handleEvent] Error sending event info:', error);
+          if (error instanceof Error) {
+            console.error('[handleEvent] Error message:', error.message);
+            console.error('[handleEvent] Error stack:', error.stack);
+          }
+        }
+        return;
+      }
+
+      // v0-jobvit.vercel.appのフォームを開くリクエスト
+      if (text === 'フォームを開く' || text === '応募フォーム' || text === '参加登録') {
+        console.log('[handleEvent] V0 form requested from rich menu');
+        try {
+          const formUrl = createV0FormUrl(userId);
+          console.log('[handleEvent] V0 form URL created, sending...');
+          
+          await client.replyMessage(replyToken, {
+            type: 'text',
+            text: '参加登録フォームを開きます。以下のボタンからアクセスしてください。',
+            quickReply: {
+              items: [
+                {
+                  type: 'action',
+                  action: {
+                    type: 'uri',
+                    label: 'フォームを開く',
+                    uri: formUrl,
+                  },
+                },
+              ],
+            },
+          });
+          
+          console.log('[handleEvent] V0 form URL sent successfully');
+          
+          // Vercel Analyticsでトラッキング
+          try {
+            track('v0_form_opened', {
+              userId: userId.substring(0, 10) + '...',
+            });
+            console.log('[handleEvent] Analytics event tracked: v0_form_opened');
+          } catch (analyticsError) {
+            console.warn('[handleEvent] Failed to track analytics event:', analyticsError);
+          }
+        } catch (error) {
+          console.error('[handleEvent] Error sending v0 form URL:', error);
           if (error instanceof Error) {
             console.error('[handleEvent] Error message:', error.message);
             console.error('[handleEvent] Error stack:', error.stack);

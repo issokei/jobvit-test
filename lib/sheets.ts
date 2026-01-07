@@ -479,3 +479,17 @@ export function createPrefilledFormUrl(userId: string, formIndex: number = 0): s
   return prefilledUrl;
 }
 
+/**
+ * v0-jobvit.vercel.appのフォームURLを生成
+ * LINEユーザーIDをクエリパラメータとして追加
+ */
+export function createV0FormUrl(userId: string): string {
+  const v0FormBaseUrl = process.env.V0_FORM_BASE_URL || 'https://v0-jobvit.vercel.app';
+  const userIdParam = encodeURIComponent(userId);
+  const formUrl = `${v0FormBaseUrl}?lineUserId=${userIdParam}`;
+  
+  console.log('[Sheets] Generated v0 form URL:', formUrl.substring(0, 100) + '...');
+  
+  return formUrl;
+}
+
