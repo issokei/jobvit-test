@@ -296,54 +296,31 @@ async function handleFollow(userId: string, client: Client) {
       console.warn('[handleFollow] Step 1: Failed to clear state (continuing anyway):', error);
     }
     
-    // 完了状態を設定（アンケートなしでイベントカードを表示）
+    // 完了状態を設定
     try {
       console.log('[handleFollow] Step 2: Saving done state...');
       await saveState(userId, { step: 'done', answers: {} });
       console.log('[handleFollow] Step 2: Done state saved successfully');
     } catch (error) {
       console.warn('[handleFollow] Step 2: Failed to save state (continuing anyway):', error);
-      // Redis接続エラーの場合でも、イベントカードは送信する
     }
     
-    // イベントカード（Flexメッセージ）を作成
-    console.log('[handleFollow] Step 3: Creating event flex message...');
-    const eventMessage = createEventFlexMessage(userId);
-    console.log('[handleFollow] Step 3: Event message created');
+    // イベントカードの送信を無効化
+    // 友達追加時にイベントカードを送信しないように変更
+    console.log('[handleFollow] Event card sending is disabled');
     
-    // プッシュメッセージを送信
-    console.log('[handleFollow] Step 4: Sending push message...');
+    // Vercel Analyticsでトラッキング（友達追加のみ）
     try {
-      const response = await client.pushMessage(userId, eventMessage);
-      console.log('[handleFollow] Step 4: Push message sent successfully!');
-      console.log('[handleFollow] Step 4: Response:', JSON.stringify(response));
-      
-      // Vercel Analyticsでトラッキング
-      try {
-        track('line_friend_added', {
-          userId: userId.substring(0, 10) + '...', // プライバシー保護のため一部のみ
-        });
-        track('event_info_viewed', {
-          userId: userId.substring(0, 10) + '...',
-        });
-        console.log('[handleFollow] Analytics events tracked: line_friend_added, event_info_viewed');
-      } catch (analyticsError) {
-        // トラッキングエラーは無視（メイン処理には影響しない）
-        console.warn('[handleFollow] Failed to track analytics event:', analyticsError);
-      }
-      
-      console.log('[handleFollow] ===== SUCCESS =====');
-    } catch (error) {
-      console.error('[handleFollow] Step 4: Failed to send push message');
-      console.error('[handleFollow] Error:', error);
-      if (error instanceof Error) {
-        console.error('[handleFollow] Error message:', error.message);
-        console.error('[handleFollow] Error code:', (error as any).code);
-        console.error('[handleFollow] Error stack:', error.stack);
-      }
-      // プッシュメッセージの送信エラーは再スロー（LINE APIの問題）
-      throw error;
+      track('line_friend_added', {
+        userId: userId.substring(0, 10) + '...', // プライバシー保護のため一部のみ
+      });
+      console.log('[handleFollow] Analytics event tracked: line_friend_added');
+    } catch (analyticsError) {
+      // トラッキングエラーは無視（メイン処理には影響しない）
+      console.warn('[handleFollow] Failed to track analytics event:', analyticsError);
     }
+    
+    console.log('[handleFollow] ===== SUCCESS =====');
   } catch (error) {
     console.error('[handleFollow] ===== FATAL ERROR =====');
     console.error('[handleFollow] Fatal error:', error);
