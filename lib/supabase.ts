@@ -16,21 +16,31 @@ export function getSupabaseClient() {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
+  console.log('[Supabase] Checking environment variables...');
+  console.log('[Supabase] SUPABASE_URL:', supabaseUrl ? 'set' : 'NOT SET');
+  console.log('[Supabase] SUPABASE_ANON_KEY:', supabaseAnonKey ? 'set' : 'NOT SET');
+
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error('[Supabase] SUPABASE_URL and SUPABASE_ANON_KEY must be set');
-    throw new Error('Supabase credentials are not configured');
+    throw new Error('Supabase credentials are not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.');
   }
 
   // 動的インポートを使用（パッケージがインストールされていない場合のエラーハンドリング）
   try {
+    console.log('[Supabase] Attempting to import @supabase/supabase-js...');
     // @ts-ignore - 動的インポート
     const { createClient } = require('@supabase/supabase-js');
+    console.log('[Supabase] Package imported successfully');
     supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
     console.log('[Supabase] Client created successfully');
     return supabaseClient;
   } catch (error) {
     console.error('[Supabase] Failed to create client:', error);
-    throw new Error('Supabase client creation failed. Please install @supabase/supabase-js');
+    if (error instanceof Error) {
+      console.error('[Supabase] Error message:', error.message);
+      console.error('[Supabase] Error stack:', error.stack);
+    }
+    throw new Error(`Supabase client creation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please install @supabase/supabase-js: npm install @supabase/supabase-js`);
   }
 }
 
@@ -55,21 +65,41 @@ export interface CompanyInfo {
  */
 export async function getCompanies(): Promise<CompanyInfo[]> {
   try {
+    console.log('[Supabase] Getting companies from company-info-test table...');
     const client = getSupabaseClient();
-    const { data, error } = await client
-      .from('company-info-test')
+    
+    // テーブル名にハイフンが含まれる場合、引用符で囲む必要がある場合がある
+    // まず通常のテーブル名で試し、失敗した場合は引用符付きで試す
+    let query = client.from('company-info-test');
+    
+    const { data, error } = await query
       .select('*')
       .order('company_name', { ascending: true });
 
     if (error) {
       console.error('[Supabase] Error fetching companies:', error);
+      console.error('[Supabase] Error code:', error.code);
+      console.error('[Supabase] Error message:', error.message);
+      console.error('[Supabase] Error details:', error.details);
+      console.error('[Supabase] Error hint:', error.hint);
       throw error;
     }
 
-    console.log('[Supabase] Fetched companies:', data?.length || 0);
+    console.log('[Supabase] Fetched companies successfully:', data?.length || 0);
+    if (data && data.length > 0) {
+      console.log('[Supabase] First company sample:', JSON.stringify(data[0], null, 2));
+    }
     return data || [];
   } catch (error) {
     console.error('[Supabase] Failed to fetch companies:', error);
+    if (error instanceof Error) {
+      console.error('[Supabase] Error message:', error.message);
+      console.error('[Supabase] Error stack:', error.stack);
+    }
+    // エラーオブジェクトの詳細をログ出力
+    if (typeof error === 'object' && error !== null) {
+      console.error('[Supabase] Error object:', JSON.stringify(error, null, 2));
+    }
     throw error;
   }
 }

@@ -269,16 +269,43 @@ async function handleEvent(event: WebhookEvent, client: Client) {
             console.warn('[handleEvent] Failed to track analytics event:', analyticsError);
           }
         } catch (error) {
+          console.error('[handleEvent] ========== COMPANY INFO ERROR ==========');
           console.error('[handleEvent] Error sending company info:', error);
           if (error instanceof Error) {
+            console.error('[handleEvent] Error name:', error.name);
             console.error('[handleEvent] Error message:', error.message);
             console.error('[handleEvent] Error stack:', error.stack);
           }
           
+          // エラーオブジェクトの詳細をログ出力
+          if (typeof error === 'object' && error !== null) {
+            console.error('[handleEvent] Error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+          }
+          
+          // Supabaseのエラー情報を確認
+          const errorObj = error as any;
+          let errorMessage = '企業情報の取得に失敗しました。';
+          
+          if (errorObj?.message) {
+            if (errorObj.message.includes('credentials are not configured')) {
+              errorMessage = 'Supabaseの設定が完了していません。管理者にお問い合わせください。';
+            } else if (errorObj.message.includes('client creation failed')) {
+              errorMessage = 'Supabaseクライアントの作成に失敗しました。管理者にお問い合わせください。';
+            } else if (errorObj.code === 'PGRST116' || errorObj.message.includes('relation') || errorObj.message.includes('does not exist')) {
+              errorMessage = 'データベーステーブルが見つかりませんでした。管理者にお問い合わせください。';
+            } else if (errorObj.code === '42501' || errorObj.message.includes('permission') || errorObj.message.includes('RLS')) {
+              errorMessage = 'データベースへのアクセス権限がありません。管理者にお問い合わせください。';
+            } else {
+              errorMessage = `エラー: ${errorObj.message}`;
+            }
+          }
+          
+          console.error('[handleEvent] ======================================');
+          
           // エラー時はエラーメッセージを送信
           await client.replyMessage(replyToken, {
             type: 'text',
-            text: '企業情報の取得に失敗しました。しばらくしてから再度お試しください。',
+            text: errorMessage + '\n\nしばらくしてから再度お試しください。',
           });
         }
         return;
