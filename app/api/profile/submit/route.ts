@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Client } from '@line/bot-sdk';
 
 /**
  * プロフィール送信APIエンドポイント
  * 
  * v0-jobvit.vercel.appからプロフィール情報を受け取り、
- * おすすめ企業を表示するページにリダイレクトします。
+ * LINE Botにおすすめ企業カードを送信します。
  * 
  * リクエストボディ形式：
  * {
@@ -19,6 +20,20 @@ import { NextRequest, NextResponse } from 'next/server';
  *   }
  * }
  */
+
+function getLineClient(): Client {
+  const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  const channelSecret = process.env.LINE_CHANNEL_SECRET;
+
+  if (!channelAccessToken || !channelSecret) {
+    throw new Error('LINE_CHANNEL_ACCESS_TOKEN and LINE_CHANNEL_SECRET must be set');
+  }
+
+  return new Client({
+    channelAccessToken,
+    channelSecret,
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,29 +54,72 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'profile is required' }, { status: 400 });
     }
 
-    // プロフィール情報を基におすすめ企業を計算
-    // 現在はランダムに選択（後でマッチングロジックを追加可能）
-    const recommendedCompanies = calculateRecommendedCompanies(profile);
+    // LINE Botにカードを送信
+    const client = getLineClient();
     
-    console.log('[ProfileSubmit] Recommended companies:', recommendedCompanies);
-
-    // v0-company-info-cards.vercel.appにリダイレクト
-    // プロフィール情報とおすすめ企業IDをクエリパラメータとして渡す
-    const companyInfoUrl = new URL('https://v0-company-info-cards.vercel.app');
-    companyInfoUrl.searchParams.set('userId', userId);
+    // v0-company-info-cards.vercel.appへのリンクを生成
+    const companyInfoUrl = `https://v0-company-info-cards.vercel.app?userId=${encodeURIComponent(userId)}`;
     
-    // プロフィール情報をJSON文字列として渡す（または個別のパラメータとして）
-    companyInfoUrl.searchParams.set('profile', JSON.stringify(profile));
-    
-    // おすすめ企業IDを渡す（カンマ区切り）
-    if (recommendedCompanies.length > 0) {
-      companyInfoUrl.searchParams.set('recommendedCompanies', recommendedCompanies.join(','));
-    }
+    // Flexメッセージでおすすめ企業カードを送信
+    const flexMessage = {
+      type: 'flex' as const,
+      altText: 'あなたにおすすめの企業',
+      contents: {
+        type: 'bubble' as const,
+        body: {
+          type: 'box' as const,
+          layout: 'vertical' as const,
+          contents: [
+            {
+              type: 'text' as const,
+              text: 'あなたにおすすめの企業',
+              weight: 'bold' as const,
+              size: 'xl' as const,
+              color: '#0F172A',
+              wrap: true,
+            },
+            {
+              type: 'text' as const,
+              text: 'あなたのプロフィールにマッチする企業をピックアップしました',
+              size: 'sm' as const,
+              color: '#64748B',
+              wrap: true,
+              margin: 'md' as const,
+            },
+          ],
+          paddingAll: '20px',
+        },
+        footer: {
+          type: 'box' as const,
+          layout: 'vertical' as const,
+          spacing: 'sm' as const,
+          contents: [
+            {
+              type: 'button' as const,
+              style: 'primary' as const,
+              height: 'md' as const,
+              action: {
+                type: 'uri' as const,
+                label: 'おすすめされた企業を確認する',
+                uri: companyInfoUrl,
+              },
+              color: '#fc9f2a',
+            },
+          ],
+          paddingAll: '20px',
+        },
+      },
+    };
 
-    console.log('[ProfileSubmit] Redirecting to:', companyInfoUrl.toString());
+    console.log('[ProfileSubmit] Sending Flex message to LINE Bot...');
+    await client.pushMessage(userId, flexMessage);
+    console.log('[ProfileSubmit] Flex message sent successfully');
 
-    // リダイレクトレスポンスを返す
-    return NextResponse.redirect(companyInfoUrl.toString());
+    // 成功レスポンスを返す
+    return NextResponse.json({
+      success: true,
+      message: 'プロフィールを送信しました。おすすめ企業のカードをLINE Botに送信しました。',
+    });
   } catch (error) {
     console.error('[ProfileSubmit] Error:', error);
     if (error instanceof Error) {
@@ -73,22 +131,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-/**
- * プロフィール情報を基におすすめ企業を計算
- * 
- * 現在は簡易実装（ランダムに5社選択）
- * 後でマッチングロジックを追加可能
- */
-function calculateRecommendedCompanies(profile: any): string[] {
-  // TODO: プロフィール情報を基にマッチングロジックを実装
-  // 現在はランダムに5社を選択（実際の実装では、業種や興味に基づいて選択）
-  
-  // 例: プロフィールの業種に基づいて企業を選択
-  // 現在は空配列を返す（v0-company-info-cards.vercel.app側で処理）
-  
-  return [];
 }
 
 /**

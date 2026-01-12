@@ -8,7 +8,7 @@
 
 ### 1. 環境変数の設定確認
 
-Vercelの環境変数に以下が設定されているか確認してください：
+Vercel の環境変数に以下が設定されているか確認してください：
 
 ```
 SUPABASE_URL=https://your-project.supabase.co
@@ -16,16 +16,18 @@ SUPABASE_ANON_KEY=your-anon-key
 ```
 
 **確認方法:**
-1. Vercel Dashboardにログイン
+
+1. Vercel Dashboard にログイン
 2. プロジェクトを選択
 3. **Settings** → **Environment Variables**を開く
 4. `SUPABASE_URL`と`SUPABASE_ANON_KEY`が設定されているか確認
 
 **注意:**
+
 - `SUPABASE_URL`は`https://`で始まる必要があります
 - `SUPABASE_ANON_KEY`は`anon`または`public`キーを使用してください（`service_role`キーは使用しないでください）
 
-### 2. Supabaseパッケージのインストール確認
+### 2. Supabase パッケージのインストール確認
 
 `@supabase/supabase-js`パッケージがインストールされているか確認：
 
@@ -39,9 +41,9 @@ npm list @supabase/supabase-js
 npm install @supabase/supabase-js
 ```
 
-### 3. Supabaseテーブルの存在確認
+### 3. Supabase テーブルの存在確認
 
-Supabaseダッシュボードで以下を確認：
+Supabase ダッシュボードで以下を確認：
 
 1. **Table Editor**を開く
 2. `company-info-test`テーブルが存在するか確認
@@ -49,12 +51,13 @@ Supabaseダッシュボードで以下を確認：
 
 ### 4. RLS（Row Level Security）ポリシーの確認
 
-SupabaseのRLSが有効になっている場合、適切なポリシーを設定する必要があります。
+Supabase の RLS が有効になっている場合、適切なポリシーを設定する必要があります。
 
 **確認方法:**
-1. Supabaseダッシュボードで`company-info-test`テーブルを開く
+
+1. Supabase ダッシュボードで`company-info-test`テーブルを開く
 2. **Authentication** → **Policies**を確認
-3. RLSが有効になっている場合、以下のポリシーを追加：
+3. RLS が有効になっている場合、以下のポリシーを追加：
 
 ```sql
 -- 全ユーザーが読み取り可能にする
@@ -63,7 +66,7 @@ FOR SELECT
 USING (true);
 ```
 
-または、RLSを無効にする（開発環境のみ推奨）：
+または、RLS を無効にする（開発環境のみ推奨）：
 
 ```sql
 ALTER TABLE "company-info-test" DISABLE ROW LEVEL SECURITY;
@@ -71,7 +74,7 @@ ALTER TABLE "company-info-test" DISABLE ROW LEVEL SECURITY;
 
 ### 5. テーブル名の確認
 
-テーブル名が正確か確認してください。ハイフンが含まれる場合、Supabaseでは引用符で囲む必要がある場合があります。
+テーブル名が正確か確認してください。ハイフンが含まれる場合、Supabase では引用符で囲む必要がある場合があります。
 
 現在のコードでは`company-info-test`を使用していますが、実際のテーブル名が異なる場合は修正が必要です。
 
@@ -90,44 +93,48 @@ ALTER TABLE "company-info-test" DISABLE ROW LEVEL SECURITY;
 
 ## 🐛 よくあるエラーと解決方法
 
-### エラー1: "Supabase credentials are not configured"
+### エラー 1: "Supabase credentials are not configured"
 
 **原因:** 環境変数が設定されていない
 
 **解決方法:**
-1. Vercelの環境変数を確認
+
+1. Vercel の環境変数を確認
 2. 環境変数を設定後、再デプロイ
 
-### エラー2: "relation \"company-info-test\" does not exist"
+### エラー 2: "relation \"company-info-test\" does not exist"
 
 **原因:** テーブルが存在しない、またはテーブル名が間違っている
 
 **解決方法:**
-1. Supabaseダッシュボードでテーブル名を確認
+
+1. Supabase ダッシュボードでテーブル名を確認
 2. テーブルが存在しない場合は作成
 3. テーブル名が異なる場合は、コード内のテーブル名を修正
 
-### エラー3: "new row violates row-level security policy"
+### エラー 3: "new row violates row-level security policy"
 
-**原因:** RLSポリシーでアクセスが拒否されている
+**原因:** RLS ポリシーでアクセスが拒否されている
 
 **解決方法:**
-1. RLSポリシーを確認
+
+1. RLS ポリシーを確認
 2. 上記の「RLS（Row Level Security）ポリシーの確認」を参照してポリシーを設定
 
-### エラー4: "permission denied for table company-info-test"
+### エラー 4: "permission denied for table company-info-test"
 
 **原因:** データベースへのアクセス権限がない
 
 **解決方法:**
-1. Supabaseの`anon`キーが正しく設定されているか確認
-2. RLSポリシーを確認
+
+1. Supabase の`anon`キーが正しく設定されているか確認
+2. RLS ポリシーを確認
 
 ## 📝 デバッグ方法
 
 ### ログの確認
 
-Vercelのログで以下の情報を確認：
+Vercel のログで以下の情報を確認：
 
 1. `[Supabase] Checking environment variables...` - 環境変数の確認
 2. `[Supabase] Client created successfully` - クライアント作成成功
@@ -138,7 +145,7 @@ Vercelのログで以下の情報を確認：
 
 ### 手動テスト
 
-SupabaseダッシュボードのSQLエディタで以下を実行して、テーブルにアクセスできるか確認：
+Supabase ダッシュボードの SQL エディタで以下を実行して、テーブルにアクセスできるか確認：
 
 ```sql
 SELECT * FROM "company-info-test" ORDER BY company_name LIMIT 10;
@@ -153,11 +160,10 @@ SELECT * FROM "company-info-test" ORDER BY company_name LIMIT 10;
 - [ ] `@supabase/supabase-js`パッケージがインストールされている
 - [ ] `company-info-test`テーブルが存在する
 - [ ] テーブルにデータが入っている
-- [ ] RLSポリシーが適切に設定されている（またはRLSが無効）
+- [ ] RLS ポリシーが適切に設定されている（または RLS が無効）
 - [ ] テーブル名とカラム名がコードと一致している
-- [ ] Vercelに再デプロイ済み
+- [ ] Vercel に再デプロイ済み
 
 ## 📞 サポート
 
-上記を確認しても解決しない場合、Vercelのログに出力されているエラーメッセージを確認して、具体的なエラー内容を共有してください。
-
+上記を確認しても解決しない場合、Vercel のログに出力されているエラーメッセージを確認して、具体的なエラー内容を共有してください。

@@ -23,13 +23,14 @@
 
 ## 🔧 実装方法
 
-### 1. プロフィール送信APIエンドポイント
+### 1. プロフィール送信 API エンドポイント
 
 `/app/api/profile/submit/route.ts` が作成されています。
 
 **エンドポイント:** `POST /api/profile/submit`
 
 **リクエストボディ:**
+
 ```json
 {
   "userId": "LINE_USER_ID",
@@ -48,88 +49,92 @@
 ```
 
 **レスポンス:**
+
 - 成功: `302 Redirect` → `https://v0-company-info-cards.vercel.app?userId=...&profile=...&recommendedCompanies=...`
 - エラー: `400 Bad Request` または `500 Internal Server Error`
 
-### 2. v0-jobvit.vercel.app側の実装
+### 2. v0-jobvit.vercel.app 側の実装
 
-プロフィールフォームの送信処理で、以下のようにAPIを呼び出します：
+プロフィールフォームの送信処理で、以下のように API を呼び出します：
 
 ```typescript
 async function handleProfileSubmit(formData: FormData) {
   // URLパラメータからLINEユーザーIDを取得
   const params = new URLSearchParams(window.location.search);
-  const userId = params.get('lineUserId');
-  
+  const userId = params.get("lineUserId");
+
   if (!userId) {
-    alert('LINEユーザーIDが取得できませんでした。');
+    alert("LINEユーザーIDが取得できませんでした。");
     return;
   }
 
   // プロフィール情報を準備
   const profile = {
-    email: formData.get('email'),
-    bunri: formData.get('bunri'),
-    graduationYear: formData.get('graduationYear'),
-    industry: formData.getAll('industry'), // 複数選択
-    careerInterest: formData.getAll('careerInterest'), // 複数選択
-    prefecture: formData.get('prefecture'),
-    companySize: formData.get('companySize'),
-    qualifications: formData.getAll('qualifications'),
-    experience: formData.getAll('experience'),
+    email: formData.get("email"),
+    bunri: formData.get("bunri"),
+    graduationYear: formData.get("graduationYear"),
+    industry: formData.getAll("industry"), // 複数選択
+    careerInterest: formData.getAll("careerInterest"), // 複数選択
+    prefecture: formData.get("prefecture"),
+    companySize: formData.get("companySize"),
+    qualifications: formData.getAll("qualifications"),
+    experience: formData.getAll("experience"),
     // その他のフィールド
   };
 
   try {
     // APIに送信
-    const response = await fetch('https://jobvit-test.vercel.app/api/profile/submit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: userId,
-        profile: profile,
-      }),
-    });
+    const response = await fetch(
+      "https://jobvit-test.vercel.app/api/profile/submit",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userId,
+          profile: profile,
+        }),
+      }
+    );
 
     if (response.ok) {
       // リダイレクトされるので、そのまま処理される
       // または、レスポンスからリダイレクトURLを取得して手動でリダイレクト
-      const redirectUrl = response.headers.get('Location');
+      const redirectUrl = response.headers.get("Location");
       if (redirectUrl) {
         window.location.href = redirectUrl;
       }
     } else {
       const error = await response.json();
-      alert(`エラー: ${error.message || 'プロフィールの送信に失敗しました。'}`);
+      alert(`エラー: ${error.message || "プロフィールの送信に失敗しました。"}`);
     }
   } catch (error) {
-    console.error('Error submitting profile:', error);
-    alert('プロフィールの送信に失敗しました。');
+    console.error("Error submitting profile:", error);
+    alert("プロフィールの送信に失敗しました。");
   }
 }
 ```
 
-### 3. v0-company-info-cards.vercel.app側の実装
+### 3. v0-company-info-cards.vercel.app 側の実装
 
-リダイレクト先のページで、URLパラメータからプロフィール情報とおすすめ企業IDを取得します：
+リダイレクト先のページで、URL パラメータからプロフィール情報とおすすめ企業 ID を取得します：
 
 ```typescript
 useEffect(() => {
   // URLパラメータから情報を取得
   const params = new URLSearchParams(window.location.search);
-  const userId = params.get('userId');
-  const profileJson = params.get('profile');
-  const recommendedCompaniesParam = params.get('recommendedCompanies');
-  
+  const userId = params.get("userId");
+  const profileJson = params.get("profile");
+  const recommendedCompaniesParam = params.get("recommendedCompanies");
+
   if (profileJson) {
     const profile = JSON.parse(profileJson);
-    console.log('Profile:', profile);
-    
+    console.log("Profile:", profile);
+
     // プロフィール情報を基におすすめ企業を取得
     if (recommendedCompaniesParam) {
-      const recommendedCompanyIds = recommendedCompaniesParam.split(',');
+      const recommendedCompanyIds = recommendedCompaniesParam.split(",");
       // おすすめ企業IDを使って企業情報を取得
       fetchRecommendedCompanies(recommendedCompanyIds);
     } else {
@@ -151,19 +156,22 @@ useEffect(() => {
 
 ## 📝 実装チェックリスト
 
-### v0-jobvit.vercel.app側
+### v0-jobvit.vercel.app 側
+
 - [ ] プロフィールフォームの送信処理を実装
-- [ ] LINEユーザーIDをURLパラメータから取得
-- [ ] `/api/profile/submit`にPOSTリクエストを送信
+- [ ] LINE ユーザー ID を URL パラメータから取得
+- [ ] `/api/profile/submit`に POST リクエストを送信
 - [ ] エラーハンドリングを実装
 
-### v0-company-info-cards.vercel.app側
-- [ ] URLパラメータからプロフィール情報を取得
+### v0-company-info-cards.vercel.app 側
+
+- [ ] URL パラメータからプロフィール情報を取得
 - [ ] プロフィール情報を基におすすめ企業を計算/取得
 - [ ] おすすめ企業のカードを表示
 - [ ] エラーハンドリングを実装
 
-### Next.js API側（jobvit-test）
+### Next.js API 側（jobvit-test）
+
 - [x] `/api/profile/submit`エンドポイントを作成
 - [ ] プロフィール情報の保存（オプション）
 - [ ] おすすめ企業の計算ロジックを実装（現在は簡易実装）
@@ -171,32 +179,34 @@ useEffect(() => {
 ## 🔍 デバッグ方法
 
 1. **ブラウザの開発者ツール**でネットワークリクエストを確認
-2. **Vercelのログ**でAPIの実行状況を確認
-3. **URLパラメータ**を確認して、正しく渡されているか確認
+2. **Vercel のログ**で API の実行状況を確認
+3. **URL パラメータ**を確認して、正しく渡されているか確認
 
 ## 📞 トラブルシューティング
 
-### 問題1: リダイレクトされない
+### 問題 1: リダイレクトされない
 
-**原因:** APIのレスポンスが正しくない
+**原因:** API のレスポンスが正しくない
 
 **解決方法:**
-- Vercelのログでエラーを確認
+
+- Vercel のログでエラーを確認
 - レスポンスのステータスコードを確認
 
-### 問題2: プロフィール情報が取得できない
+### 問題 2: プロフィール情報が取得できない
 
-**原因:** URLパラメータのエンコード/デコードの問題
+**原因:** URL パラメータのエンコード/デコードの問題
 
 **解決方法:**
-- `encodeURIComponent`と`decodeURIComponent`を使用
-- JSON文字列のエスケープを確認
 
-### 問題3: おすすめ企業が表示されない
+- `encodeURIComponent`と`decodeURIComponent`を使用
+- JSON 文字列のエスケープを確認
+
+### 問題 3: おすすめ企業が表示されない
 
 **原因:** おすすめ企業の計算ロジックが未実装
 
 **解決方法:**
-- `calculateRecommendedCompanies`関数を実装
-- v0-company-info-cards.vercel.app側でプロフィール情報を基に計算
 
+- `calculateRecommendedCompanies`関数を実装
+- v0-company-info-cards.vercel.app 側でプロフィール情報を基に計算
