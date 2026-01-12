@@ -10,6 +10,8 @@ import {
   // createSurveyCompletePanel,
   createEventFlexMessage,
 } from '@/lib/messages';
+import { getCompanies } from '@/lib/supabase';
+import { createCompanyListFlexMessages, createCompanyNotFoundMessage } from '@/lib/company-messages';
 
 function getLineClient(): Client {
   const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
@@ -226,6 +228,62 @@ async function handleEvent(event: WebhookEvent, client: Client) {
         return;
       }
 
+      // 企業情報を見る
+      if (text === '企業情報を見る' || text === '企業情報' || text === '企業一覧') {
+        console.log('[handleEvent] Company info requested');
+        try {
+          const companies = await getCompanies();
+          console.log('[handleEvent] Companies fetched:', companies.length);
+          
+          if (companies.length === 0) {
+            const notFoundMessage = createCompanyNotFoundMessage();
+            await client.replyMessage(replyToken, notFoundMessage);
+          } else {
+            // 全ての企業情報を複数のメッセージに分けて送信
+            const companyMessages = createCompanyListFlexMessages(companies);
+            console.log('[handleEvent] Company messages created:', companyMessages.length, 'messages');
+            
+            // 最初のメッセージを送信（replyMessage）
+            if (companyMessages.length > 0) {
+              await client.replyMessage(replyToken, companyMessages[0]);
+              console.log('[handleEvent] First company message sent');
+              
+              // 残りのメッセージを順次送信（pushMessage）
+              for (let i = 1; i < companyMessages.length; i++) {
+                // 少し待機してから送信（LINE APIのレート制限対策）
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await client.pushMessage(userId, companyMessages[i]);
+                console.log(`[handleEvent] Company message ${i + 1}/${companyMessages.length} sent`);
+              }
+            }
+          }
+          
+          // Vercel Analyticsでトラッキング
+          try {
+            track('company_info_viewed', {
+              userId: userId.substring(0, 10) + '...',
+              companyCount: companies.length,
+            });
+            console.log('[handleEvent] Analytics event tracked: company_info_viewed');
+          } catch (analyticsError) {
+            console.warn('[handleEvent] Failed to track analytics event:', analyticsError);
+          }
+        } catch (error) {
+          console.error('[handleEvent] Error sending company info:', error);
+          if (error instanceof Error) {
+            console.error('[handleEvent] Error message:', error.message);
+            console.error('[handleEvent] Error stack:', error.stack);
+          }
+          
+          // エラー時はエラーメッセージを送信
+          await client.replyMessage(replyToken, {
+            type: 'text',
+            text: '企業情報の取得に失敗しました。しばらくしてから再度お試しください。',
+          });
+        }
+        return;
+      }
+
       // イベント情報
       if (text === 'イベント情報' || text === 'イベント情報を表示する') {
         console.log('[handleEvent] Event info requested');
@@ -268,12 +326,14 @@ async function handleEvent(event: WebhookEvent, client: Client) {
       }
 
       // メッセージ受信時の処理（Googleフォーム採点機能は無効化）
-      // イベント情報以外のメッセージには案内を返す
+      // イベント情報・企業情報以外のメッセージには案内を返す
       await client.replyMessage(replyToken, {
         type: 'text',
         text: [
           'こんにちは！',
-          'イベント情報を見るには「イベント情報」と送信してください。',
+          '以下のコマンドが利用できます：',
+          '・「イベント情報」- イベント情報を表示',
+          '・「企業情報を見る」- 参加企業一覧を表示',
           'フォームに回答すると、自動的に採点結果をお送りします。',
         ].join('\n'),
       });
