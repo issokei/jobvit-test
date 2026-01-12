@@ -190,20 +190,54 @@ async function handleEvent(event: WebhookEvent, client: Client) {
           const formUrl = createV0FormUrl(userId);
           console.log('[handleEvent] V0 form URL created, sending...');
           
+          // Flexメッセージでカード形式で表示
           await client.replyMessage(replyToken, {
-            type: 'text',
-            text: '参加登録フォームを開きます。以下のボタンからアクセスしてください。',
-            quickReply: {
-              items: [
-                {
-                  type: 'action',
-                  action: {
-                    type: 'uri',
-                    label: 'フォームを開く',
-                    uri: formUrl,
+            type: 'flex',
+            altText: '参加登録フォーム',
+            contents: {
+              type: 'bubble',
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '参加登録フォーム',
+                    weight: 'bold',
+                    size: 'xl',
+                    color: '#0F172A',
+                    wrap: true,
                   },
-                },
-              ],
+                  {
+                    type: 'text',
+                    text: 'プロフィール情報を入力して、おすすめ企業を確認しましょう。',
+                    size: 'sm',
+                    color: '#64748B',
+                    wrap: true,
+                    margin: 'md',
+                  },
+                ],
+                paddingAll: '20px',
+              },
+              footer: {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'sm',
+                contents: [
+                  {
+                    type: 'button',
+                    style: 'primary',
+                    height: 'md',
+                    action: {
+                      type: 'uri',
+                      label: 'フォームを開く',
+                      uri: formUrl,
+                    },
+                    color: '#fc9f2a',
+                  },
+                ],
+                paddingAll: '20px',
+              },
             },
           });
           
