@@ -232,80 +232,83 @@ async function handleEvent(event: WebhookEvent, client: Client) {
       if (text === '企業情報を見る' || text === '企業情報' || text === '企業一覧') {
         console.log('[handleEvent] Company info requested');
         try {
-          const companies = await getCompanies();
-          console.log('[handleEvent] Companies fetched:', companies.length);
+          // v0-company-info-cards.vercel.appへのリンクを生成（ユーザーIDを追加）
+          const companyInfoUrl = `https://v0-company-info-cards.vercel.app?userId=${encodeURIComponent(userId)}`;
+          console.log('[handleEvent] Company info URL created:', companyInfoUrl);
           
-          if (companies.length === 0) {
-            const notFoundMessage = createCompanyNotFoundMessage();
-            await client.replyMessage(replyToken, notFoundMessage);
-          } else {
-            // 全ての企業情報を複数のメッセージに分けて送信
-            const companyMessages = createCompanyListFlexMessages(companies);
-            console.log('[handleEvent] Company messages created:', companyMessages.length, 'messages');
-            
-            // 最初のメッセージを送信（replyMessage）
-            if (companyMessages.length > 0) {
-              await client.replyMessage(replyToken, companyMessages[0]);
-              console.log('[handleEvent] First company message sent');
-              
-              // 残りのメッセージを順次送信（pushMessage）
-              for (let i = 1; i < companyMessages.length; i++) {
-                // 少し待機してから送信（LINE APIのレート制限対策）
-                await new Promise(resolve => setTimeout(resolve, 500));
-                await client.pushMessage(userId, companyMessages[i]);
-                console.log(`[handleEvent] Company message ${i + 1}/${companyMessages.length} sent`);
-              }
-            }
-          }
+          // Flexメッセージでリンクボタンを表示
+          await client.replyMessage(replyToken, {
+            type: 'flex',
+            altText: '企業情報を見る',
+            contents: {
+              type: 'bubble',
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: 'あなたにおすすめの企業',
+                    weight: 'bold',
+                    size: 'xl',
+                    color: '#0F172A',
+                    wrap: true,
+                  },
+                  {
+                    type: 'text',
+                    text: 'ランダムに表示された企業情報を確認できます。',
+                    size: 'sm',
+                    color: '#64748B',
+                    wrap: true,
+                    margin: 'md',
+                  },
+                ],
+                paddingAll: '20px',
+              },
+              footer: {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'sm',
+                contents: [
+                  {
+                    type: 'button',
+                    style: 'primary',
+                    height: 'md',
+                    action: {
+                      type: 'uri',
+                      label: '企業情報を見る',
+                      uri: companyInfoUrl,
+                    },
+                    color: '#fc9f2a',
+                  },
+                ],
+                paddingAll: '20px',
+              },
+            },
+          });
+          
+          console.log('[handleEvent] Company info message sent successfully');
           
           // Vercel Analyticsでトラッキング
           try {
             track('company_info_viewed', {
               userId: userId.substring(0, 10) + '...',
-              companyCount: companies.length,
             });
             console.log('[handleEvent] Analytics event tracked: company_info_viewed');
           } catch (analyticsError) {
             console.warn('[handleEvent] Failed to track analytics event:', analyticsError);
           }
         } catch (error) {
-          console.error('[handleEvent] ========== COMPANY INFO ERROR ==========');
           console.error('[handleEvent] Error sending company info:', error);
           if (error instanceof Error) {
-            console.error('[handleEvent] Error name:', error.name);
             console.error('[handleEvent] Error message:', error.message);
             console.error('[handleEvent] Error stack:', error.stack);
           }
           
-          // エラーオブジェクトの詳細をログ出力
-          if (typeof error === 'object' && error !== null) {
-            console.error('[handleEvent] Error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-          }
-          
-          // Supabaseのエラー情報を確認
-          const errorObj = error as any;
-          let errorMessage = '企業情報の取得に失敗しました。';
-          
-          if (errorObj?.message) {
-            if (errorObj.message.includes('credentials are not configured')) {
-              errorMessage = 'Supabaseの設定が完了していません。管理者にお問い合わせください。';
-            } else if (errorObj.message.includes('client creation failed')) {
-              errorMessage = 'Supabaseクライアントの作成に失敗しました。管理者にお問い合わせください。';
-            } else if (errorObj.code === 'PGRST116' || errorObj.message.includes('relation') || errorObj.message.includes('does not exist')) {
-              errorMessage = 'データベーステーブルが見つかりませんでした。管理者にお問い合わせください。';
-            } else if (errorObj.code === '42501' || errorObj.message.includes('permission') || errorObj.message.includes('RLS')) {
-              errorMessage = 'データベースへのアクセス権限がありません。管理者にお問い合わせください。';
-            } else {
-              errorMessage = `エラー: ${errorObj.message}`;
-            }
-          }
-          
-          console.error('[handleEvent] ======================================');
-          
           // エラー時はエラーメッセージを送信
           await client.replyMessage(replyToken, {
             type: 'text',
-            text: errorMessage + '\n\nしばらくしてから再度お試しください。',
+            text: '企業情報の表示に失敗しました。しばらくしてから再度お試しください。',
           });
         }
         return;

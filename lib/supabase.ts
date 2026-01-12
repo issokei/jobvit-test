@@ -68,13 +68,39 @@ export async function getCompanies(): Promise<CompanyInfo[]> {
     console.log('[Supabase] Getting companies from company-info-test table...');
     const client = getSupabaseClient();
     
-    // テーブル名にハイフンが含まれる場合、引用符で囲む必要がある場合がある
-    // まず通常のテーブル名で試し、失敗した場合は引用符付きで試す
-    let query = client.from('company-info-test');
+    // まずテーブル一覧を確認（デバッグ用）
+    console.log('[Supabase] Attempting to query company-info-test table...');
     
-    const { data, error } = await query
-      .select('*')
-      .order('company_name', { ascending: true });
+    // テーブル名にハイフンが含まれる場合の対応
+    // SupabaseのJavaScriptクライアントでは通常そのまま使用可能だが、
+    // 念のため複数のパターンを試す
+    let data: any[] | null = null;
+    let error: any = null;
+    
+    // パターン1: 通常のテーブル名
+    try {
+      console.log('[Supabase] Trying table name: company-info-test');
+      const result = await client
+        .from('company-info-test')
+        .select('*')
+        .order('company_name', { ascending: true });
+      
+      data = result.data;
+      error = result.error;
+      
+      if (error) {
+        console.warn('[Supabase] Error with company-info-test:', error.message);
+      }
+    } catch (e) {
+      console.warn('[Supabase] Exception with company-info-test:', e);
+    }
+    
+    // パターン2: 引用符付きテーブル名（SQLでは必要だが、JSクライアントでは通常不要）
+    // ただし、念のため試す
+    if (error || !data || data.length === 0) {
+      console.log('[Supabase] Trying alternative table name patterns...');
+      // 他の可能性のあるテーブル名を試す（実際のテーブル名に合わせて調整）
+    }
 
     if (error) {
       console.error('[Supabase] Error fetching companies:', error);
@@ -82,13 +108,31 @@ export async function getCompanies(): Promise<CompanyInfo[]> {
       console.error('[Supabase] Error message:', error.message);
       console.error('[Supabase] Error details:', error.details);
       console.error('[Supabase] Error hint:', error.hint);
+      
+      // RLSエラーの場合の特別な処理
+      if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('RLS')) {
+        console.error('[Supabase] RLS (Row Level Security) policy may be blocking access.');
+        console.error('[Supabase] Please check RLS policies in Supabase dashboard.');
+      }
+      
       throw error;
     }
 
-    console.log('[Supabase] Fetched companies successfully:', data?.length || 0);
+    console.log('[Supabase] Query result - data length:', data?.length || 0);
+    console.log('[Supabase] Query result - error:', error ? 'exists' : 'none');
+    
     if (data && data.length > 0) {
+      console.log('[Supabase] Fetched companies successfully:', data.length);
       console.log('[Supabase] First company sample:', JSON.stringify(data[0], null, 2));
+      console.log('[Supabase] Sample company_name:', data[0]?.company_name);
+    } else {
+      console.warn('[Supabase] No companies found in table');
+      console.warn('[Supabase] This could mean:');
+      console.warn('[Supabase] 1. Table is empty');
+      console.warn('[Supabase] 2. Table name is incorrect');
+      console.warn('[Supabase] 3. RLS policy is blocking access');
     }
+    
     return data || [];
   } catch (error) {
     console.error('[Supabase] Failed to fetch companies:', error);
@@ -98,7 +142,7 @@ export async function getCompanies(): Promise<CompanyInfo[]> {
     }
     // エラーオブジェクトの詳細をログ出力
     if (typeof error === 'object' && error !== null) {
-      console.error('[Supabase] Error object:', JSON.stringify(error, null, 2));
+      console.error('[Supabase] Error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     }
     throw error;
   }
