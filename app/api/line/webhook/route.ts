@@ -256,7 +256,7 @@ async function handleEvent(event: WebhookEvent, client: Client) {
                   },
                   {
                     type: 'text',
-                    text: 'ランダムに表示された企業情報を確認できます。',
+                    text: 'あなたのプロフィールにマッチする企業をピックアップしました',
                     size: 'sm',
                     color: '#64748B',
                     wrap: true,
@@ -276,7 +276,7 @@ async function handleEvent(event: WebhookEvent, client: Client) {
                     height: 'md',
                     action: {
                       type: 'uri',
-                      label: '企業情報を見る',
+                      label: 'おすすめされた企業を確認する',
                       uri: companyInfoUrl,
                     },
                     color: '#fc9f2a',
