@@ -564,7 +564,7 @@ function buildQuestionText(question: { title: string; subtitle: string; options:
 }
 
 async function buildQuestionTextWithMode(
-  question: { title: string; subtitle: string; options: string[]; multiple?: boolean; maxSelections?: number },
+  question: Question,
   index: number,
   answers: Record<string, string>,
   useAi: boolean
