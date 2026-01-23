@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Client, validateSignature, WebhookEvent, MessageEvent } from '@line/bot-sdk';
 import { track } from '@vercel/analytics/server';
 import { QUESTIONS } from '@/lib/questions';
+import { generateProfileQuestionText } from '@/lib/ai-profile';
 import { getState, saveState, clearState } from '@/lib/kv';
 import { saveChatProfileToSheet, createV0FormUrl } from '@/lib/sheets';
 import {
@@ -12,6 +13,7 @@ import {
 } from '@/lib/messages';
 
 const PROFILE_STEP_PREFIX = 'profile:';
+const PROFILE_AI_STEP_PREFIX = 'profile_ai:';
 const PROFILE_START_COMMANDS = [
   'プロフィール回答開始',
   'プロフィール開始',
@@ -19,6 +21,11 @@ const PROFILE_START_COMMANDS = [
   'プロフィール入力',
   'プロフィールを入力する',
   'プロフィールを回答する',
+];
+const PROFILE_AI_START_COMMANDS = [
+  'AIプロフィール回答開始',
+  'AIプロフィール開始',
+  'AIアンケート開始',
 ];
 
 function getLineClient(): Client {
@@ -147,8 +154,13 @@ async function handleEvent(event: WebhookEvent, client: Client) {
 
       const currentState = await getState(userId);
 
+      if (PROFILE_AI_START_COMMANDS.includes(text)) {
+        await startProfileChat(userId, replyToken, client, true);
+        return;
+      }
+
       if (PROFILE_START_COMMANDS.includes(text)) {
-        await startProfileChat(userId, replyToken, client);
+        await startProfileChat(userId, replyToken, client, false);
         return;
       }
 
@@ -412,6 +424,7 @@ async function handleEvent(event: WebhookEvent, client: Client) {
           '・「イベント情報」- イベント情報を表示',
           '・「企業情報を見る」- 参加企業一覧を表示',
           '・「プロフィール回答開始」- LINEでプロフィールを回答',
+          '・「AIプロフィール回答開始」- AI文面で質問を表示',
         ].join('\n'),
       });
       return;
@@ -420,19 +433,24 @@ async function handleEvent(event: WebhookEvent, client: Client) {
 }
 
 function isProfileStep(step?: string): boolean {
-  return !!step && step.startsWith(PROFILE_STEP_PREFIX);
+  return !!step && (step.startsWith(PROFILE_STEP_PREFIX) || step.startsWith(PROFILE_AI_STEP_PREFIX));
 }
 
 function getProfileIndex(step: string): number {
-  const raw = step.replace(PROFILE_STEP_PREFIX, '');
+  const raw = step.replace(PROFILE_AI_STEP_PREFIX, '').replace(PROFILE_STEP_PREFIX, '');
   const index = parseInt(raw, 10);
   return Number.isNaN(index) ? 0 : index;
 }
 
-async function startProfileChat(userId: string, replyToken: string, client: Client) {
+function isAiProfileStep(step: string): boolean {
+  return step.startsWith(PROFILE_AI_STEP_PREFIX);
+}
+
+async function startProfileChat(userId: string, replyToken: string, client: Client, useAi: boolean) {
   console.log('[ProfileChat] Starting profile chat for user:', userId);
 
-  await saveState(userId, { step: `${PROFILE_STEP_PREFIX}0`, answers: {} });
+  const stepPrefix = useAi ? PROFILE_AI_STEP_PREFIX : PROFILE_STEP_PREFIX;
+  await saveState(userId, { step: `${stepPrefix}0`, answers: {} });
 
   const firstQuestion = QUESTIONS[0];
   if (!firstQuestion) {
@@ -443,9 +461,11 @@ async function startProfileChat(userId: string, replyToken: string, client: Clie
     return;
   }
 
+  const questionText = await buildQuestionTextWithMode(firstQuestion, 0, {}, useAi);
+
   await client.replyMessage(replyToken, {
     type: 'text',
-    text: buildQuestionText(firstQuestion),
+    text: questionText,
   });
 }
 
@@ -458,6 +478,7 @@ async function handleProfileAnswer(
 ) {
   const index = getProfileIndex(state.step);
   const question = QUESTIONS[index];
+  const useAi = isAiProfileStep(state.step);
 
   if (!question) {
     await client.replyMessage(replyToken, {
@@ -469,9 +490,10 @@ async function handleProfileAnswer(
 
   const normalized = normalizeAnswer(text, question);
   if (!normalized) {
+    const retryText = await buildQuestionTextWithMode(question, index, state.answers || {}, useAi);
     await client.replyMessage(replyToken, {
       type: 'text',
-      text: `入力内容を確認してください。\n\n${buildQuestionText(question)}`,
+      text: `入力内容を確認してください。\n\n${retryText}`,
     });
     return;
   }
@@ -483,33 +505,41 @@ async function handleProfileAnswer(
   const nextQuestion = QUESTIONS[nextIndex];
 
   if (nextQuestion) {
-    await saveState(userId, { step: `${PROFILE_STEP_PREFIX}${nextIndex}`, answers });
+    const stepPrefix = useAi ? PROFILE_AI_STEP_PREFIX : PROFILE_STEP_PREFIX;
+    await saveState(userId, { step: `${stepPrefix}${nextIndex}`, answers });
+    const nextText = await buildQuestionTextWithMode(nextQuestion, nextIndex, answers, useAi);
     await client.replyMessage(replyToken, {
       type: 'text',
-      text: buildQuestionText(nextQuestion),
+      text: nextText,
     });
     return;
   }
 
   await saveState(userId, { step: 'done', answers });
 
+  let sheetSaveError = false;
   try {
     await saveChatProfileToSheet(userId, answers, QUESTIONS.map((q) => q.title));
     console.log('[ProfileChat] Saved profile answers to sheet');
   } catch (error) {
+    sheetSaveError = true;
     console.error('[ProfileChat] Failed to save to sheet:', error);
   }
 
   const companyInfoUrl = `https://v0-company-info-cards.vercel.app?userId=${encodeURIComponent(userId)}`;
   const flexMessage = buildRecommendationFlexMessage(companyInfoUrl);
 
-  await client.replyMessage(replyToken, [
+  const messages = [
     {
-      type: 'text',
-      text: '回答ありがとうございました。おすすめ企業のカードをお送りします。',
+      type: 'text' as const,
+      text: sheetSaveError
+        ? '回答は受け取りましたが、スプレッドシートへの保存に失敗しました。管理者にご連絡ください。'
+        : '回答ありがとうございました。おすすめ企業のカードをお送りします。',
     },
     flexMessage,
-  ]);
+  ];
+
+  await client.replyMessage(replyToken, messages);
 }
 
 function buildQuestionText(question: { title: string; subtitle: string; options: string[]; multiple?: boolean; maxSelections?: number }) {
@@ -531,6 +561,24 @@ function buildQuestionText(question: { title: string; subtitle: string; options:
   }
 
   return lines.join('\n');
+}
+
+async function buildQuestionTextWithMode(
+  question: { title: string; subtitle: string; options: string[]; multiple?: boolean; maxSelections?: number },
+  index: number,
+  answers: Record<string, string>,
+  useAi: boolean
+): Promise<string> {
+  if (!useAi) {
+    return buildQuestionText(question);
+  }
+
+  try {
+    return await generateProfileQuestionText(question, index, QUESTIONS.length, answers);
+  } catch (error) {
+    console.error('[ProfileChat] AI question generation failed, fallback to static text:', error);
+    return buildQuestionText(question);
+  }
 }
 
 function normalizeAnswer(
