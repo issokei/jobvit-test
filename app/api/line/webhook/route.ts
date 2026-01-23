@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Client, validateSignature, WebhookEvent, MessageEvent } from '@line/bot-sdk';
 import { track } from '@vercel/analytics/server';
 import { QUESTIONS } from '@/lib/questions';
+import type { Question } from '@/lib/types';
 import { generateProfileQuestionText } from '@/lib/ai-profile';
 import { getState, saveState, clearState } from '@/lib/kv';
 import { saveChatProfileToSheet, createV0FormUrl } from '@/lib/sheets';
