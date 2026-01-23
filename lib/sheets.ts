@@ -174,6 +174,55 @@ async function ensureHeader(
   }
 }
 
+async function ensureDynamicHeader(
+  sheets: any,
+  spreadsheetId: string,
+  sheetName: string,
+  requiredHeaders: string[]
+): Promise<string[]> {
+  console.log('[Sheets] Ensuring dynamic header for sheet:', sheetName);
+
+  try {
+    const sheet = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!1:1`,
+    });
+
+    const existingHeaders = sheet.data.values?.[0] || [];
+    console.log('[Sheets] Existing headers:', existingHeaders);
+
+    const existingSet = new Set(existingHeaders.map((h: string) => String(h)));
+    const toAdd = requiredHeaders.filter((h) => !existingSet.has(h));
+    console.log('[Sheets] Headers to add:', toAdd);
+
+    if (toAdd.length > 0) {
+      const newHeaders = [...existingHeaders, ...toAdd];
+      console.log('[Sheets] Updating headers:', newHeaders);
+
+      const updateResponse = await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!1:1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [newHeaders] },
+      });
+
+      console.log('[Sheets] Header update response:', JSON.stringify(updateResponse.data));
+      return newHeaders.map(String);
+    }
+
+    return existingHeaders.map(String);
+  } catch (error) {
+    console.error('[Sheets] Error ensuring dynamic header:', error);
+    if (error instanceof Error) {
+      console.error('[Sheets] Error message:', error.message);
+      if (error.message.includes('Unable to parse range') || error.message.includes('not found')) {
+        throw new Error(`Sheet "${sheetName}" not found in spreadsheet. Please check GOOGLE_SHEETS_PROFILE_SHEET_NAME environment variable.`);
+      }
+    }
+    throw error;
+  }
+}
+
 async function findRowByUserId(
   sheets: any,
   spreadsheetId: string,
@@ -404,6 +453,68 @@ export async function saveFormSubmission(
   // 応募フォーム関連の列を削除したため、この関数は何もしません
   console.log('[Sheets] saveFormSubmission called but form columns are removed');
   return;
+}
+
+export async function saveChatProfileToSheet(
+  userId: string,
+  answers: Record<string, string>,
+  questionTitles: string[]
+): Promise<void> {
+  try {
+    console.log('[Sheets] ===== START saveChatProfileToSheet =====');
+    console.log('[Sheets] userId:', userId);
+    console.log('[Sheets] answers keys:', Object.keys(answers || {}));
+
+    const configs = await getSheetConfigs();
+    console.log('[Sheets] Saving to', configs.length, 'sheet(s)');
+
+    const auth = getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const requiredHeaders = ['タイムスタンプ', 'ユーザーID', ...questionTitles];
+
+    const savePromises = configs.map(async (config, index) => {
+      try {
+        console.log(`[Sheets] Saving to sheet ${index + 1}/${configs.length}:`, config.spreadsheetId, config.sheetName);
+        const header = await ensureDynamicHeader(sheets, config.spreadsheetId, config.sheetName, requiredHeaders);
+        const now = new Date().toISOString();
+
+        const row = new Array(header.length).fill('');
+        header.forEach((h, idx) => {
+          if (h === 'タイムスタンプ') row[idx] = now;
+          if (h === 'ユーザーID') row[idx] = userId;
+          if (answers[h] !== undefined) row[idx] = answers[h];
+        });
+
+        const appendResponse = await sheets.spreadsheets.values.append({
+          spreadsheetId: config.spreadsheetId,
+          range: `${config.sheetName}!A:A`,
+          valueInputOption: 'RAW',
+          requestBody: { values: [row] },
+        });
+
+        console.log('[Sheets] Append API response:', JSON.stringify(appendResponse.data));
+        console.log('[Sheets] ✅ Successfully saved to sheet');
+      } catch (error) {
+        console.error(`[Sheets] ❌ Failed to save to sheet ${index + 1}/${configs.length}:`, error);
+        if (error instanceof Error) {
+          console.error(`[Sheets] Error message:`, error.message);
+        }
+        throw error;
+      }
+    });
+
+    await Promise.all(savePromises);
+    console.log('[Sheets] ===== SUCCESS saveChatProfileToSheet =====');
+  } catch (error) {
+    console.error('[Sheets] ===== ERROR saveChatProfileToSheet =====');
+    console.error('[Sheets] Error:', error);
+    if (error instanceof Error) {
+      console.error('[Sheets] Error message:', error.message);
+      console.error('[Sheets] Error stack:', error.stack);
+    }
+    throw error;
+  }
 }
 
 function getFormConfigs(): FormConfig[] {

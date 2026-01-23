@@ -4,6 +4,8 @@ export interface Question {
   title: string;
   subtitle: string;
   options: string[];
+  multiple?: boolean;
+  maxSelections?: number;
 }
 
 export interface UserState {

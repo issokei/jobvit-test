@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client, validateSignature, WebhookEvent, MessageEvent } from '@line/bot-sdk';
 import { track } from '@vercel/analytics/server';
-// import { QUESTIONS } from '@/lib/questions';
+import { QUESTIONS } from '@/lib/questions';
 import { getState, saveState, clearState } from '@/lib/kv';
-import { /* saveProfileToSheet, */ createPrefilledFormUrl, createV0FormUrl } from '@/lib/sheets';
+import { saveChatProfileToSheet, createV0FormUrl } from '@/lib/sheets';
 import {
   // buildQuestionFlex,
-  createGuideFlex,
+  // createGuideFlex,
   // createSurveyCompletePanel,
   createEventFlexMessage,
 } from '@/lib/messages';
-import { getCompanies } from '@/lib/supabase';
-import { createCompanyListFlexMessages, createCompanyNotFoundMessage } from '@/lib/company-messages';
+
+const PROFILE_STEP_PREFIX = 'profile:';
+const PROFILE_START_COMMANDS = [
+  'プロフィール回答開始',
+  'プロフィール開始',
+  'アンケート開始',
+  'プロフィール入力',
+  'プロフィールを入力する',
+  'プロフィールを回答する',
+];
 
 function getLineClient(): Client {
   const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
@@ -137,12 +145,17 @@ async function handleEvent(event: WebhookEvent, client: Client) {
         return;
       }
 
-      // start コマンド（保険）- アンケート機能を無効化したためコメントアウト
-      // if (text.toLowerCase() === 'start') {
-      //   console.log('[handleEvent] Start command detected');
-      //   await resetToFirstQuestion(userId, replyToken, client);
-      //   return;
-      // }
+      const currentState = await getState(userId);
+
+      if (PROFILE_START_COMMANDS.includes(text)) {
+        await startProfileChat(userId, replyToken, client);
+        return;
+      }
+
+      if (currentState && isProfileStep(currentState.step)) {
+        await handleProfileAnswer(text, userId, replyToken, client, currentState);
+        return;
+      }
 
       // リッチメニューからの次回イベント応募リクエスト
       if (text === '次回イベントに応募する') {
@@ -389,8 +402,8 @@ async function handleEvent(event: WebhookEvent, client: Client) {
         return;
       }
 
-      // メッセージ受信時の処理（Googleフォーム採点機能は無効化）
-      // イベント情報・企業情報以外のメッセージには案内を返す
+      // メッセージ受信時の処理
+      // イベント情報・企業情報・プロフィール回答以外のメッセージには案内を返す
       await client.replyMessage(replyToken, {
         type: 'text',
         text: [
@@ -398,12 +411,228 @@ async function handleEvent(event: WebhookEvent, client: Client) {
           '以下のコマンドが利用できます：',
           '・「イベント情報」- イベント情報を表示',
           '・「企業情報を見る」- 参加企業一覧を表示',
-          'フォームに回答すると、自動的に採点結果をお送りします。',
+          '・「プロフィール回答開始」- LINEでプロフィールを回答',
         ].join('\n'),
       });
       return;
     }
   }
+}
+
+function isProfileStep(step?: string): boolean {
+  return !!step && step.startsWith(PROFILE_STEP_PREFIX);
+}
+
+function getProfileIndex(step: string): number {
+  const raw = step.replace(PROFILE_STEP_PREFIX, '');
+  const index = parseInt(raw, 10);
+  return Number.isNaN(index) ? 0 : index;
+}
+
+async function startProfileChat(userId: string, replyToken: string, client: Client) {
+  console.log('[ProfileChat] Starting profile chat for user:', userId);
+
+  await saveState(userId, { step: `${PROFILE_STEP_PREFIX}0`, answers: {} });
+
+  const firstQuestion = QUESTIONS[0];
+  if (!firstQuestion) {
+    await client.replyMessage(replyToken, {
+      type: 'text',
+      text: '質問が設定されていません。管理者にお問い合わせください。',
+    });
+    return;
+  }
+
+  await client.replyMessage(replyToken, {
+    type: 'text',
+    text: buildQuestionText(firstQuestion),
+  });
+}
+
+async function handleProfileAnswer(
+  text: string,
+  userId: string,
+  replyToken: string,
+  client: Client,
+  state: { step: string; answers: Record<string, string> }
+) {
+  const index = getProfileIndex(state.step);
+  const question = QUESTIONS[index];
+
+  if (!question) {
+    await client.replyMessage(replyToken, {
+      type: 'text',
+      text: '質問が見つかりませんでした。最初からやり直してください。',
+    });
+    return;
+  }
+
+  const normalized = normalizeAnswer(text, question);
+  if (!normalized) {
+    await client.replyMessage(replyToken, {
+      type: 'text',
+      text: `入力内容を確認してください。\n\n${buildQuestionText(question)}`,
+    });
+    return;
+  }
+
+  const answers = state.answers || {};
+  answers[question.title] = normalized;
+
+  const nextIndex = index + 1;
+  const nextQuestion = QUESTIONS[nextIndex];
+
+  if (nextQuestion) {
+    await saveState(userId, { step: `${PROFILE_STEP_PREFIX}${nextIndex}`, answers });
+    await client.replyMessage(replyToken, {
+      type: 'text',
+      text: buildQuestionText(nextQuestion),
+    });
+    return;
+  }
+
+  await saveState(userId, { step: 'done', answers });
+
+  try {
+    await saveChatProfileToSheet(userId, answers, QUESTIONS.map((q) => q.title));
+    console.log('[ProfileChat] Saved profile answers to sheet');
+  } catch (error) {
+    console.error('[ProfileChat] Failed to save to sheet:', error);
+  }
+
+  const companyInfoUrl = `https://v0-company-info-cards.vercel.app?userId=${encodeURIComponent(userId)}`;
+  const flexMessage = buildRecommendationFlexMessage(companyInfoUrl);
+
+  await client.replyMessage(replyToken, [
+    {
+      type: 'text',
+      text: '回答ありがとうございました。おすすめ企業のカードをお送りします。',
+    },
+    flexMessage,
+  ]);
+}
+
+function buildQuestionText(question: { title: string; subtitle: string; options: string[]; multiple?: boolean; maxSelections?: number }) {
+  const lines = [question.title, question.subtitle];
+
+  if (question.options && question.options.length > 0) {
+    lines.push('');
+    lines.push('選択肢：');
+    question.options.forEach((opt, idx) => {
+      lines.push(`${idx + 1}. ${opt}`);
+    });
+    lines.push('');
+    if (question.multiple) {
+      const maxInfo = question.maxSelections ? `（最大${question.maxSelections}つ）` : '';
+      lines.push(`回答方法: 番号または内容をカンマ区切りで入力してください ${maxInfo}`);
+    } else {
+      lines.push('回答方法: 番号または内容で入力してください');
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function normalizeAnswer(
+  input: string,
+  question: { options: string[]; multiple?: boolean; maxSelections?: number }
+): string | null {
+  const raw = String(input || '').trim();
+  if (!raw) return null;
+
+  if (!question.options || question.options.length === 0) {
+    return raw;
+  }
+
+  if (!question.multiple) {
+    const single = mapToOption(raw, question.options);
+    return single || null;
+  }
+
+  const tokens = raw.split(/[、,]/).map((t) => t.trim()).filter(Boolean);
+  if (tokens.length === 0) return null;
+
+  const selections: string[] = [];
+  for (const token of tokens) {
+    const mapped = mapToOption(token, question.options);
+    if (mapped) {
+      selections.push(mapped);
+      continue;
+    }
+    if (question.options.includes('その他') && token.startsWith('その他')) {
+      selections.push(token);
+      continue;
+    }
+    return null;
+  }
+
+  if (question.maxSelections && selections.length > question.maxSelections) {
+    return null;
+  }
+
+  return selections.join(' / ');
+}
+
+function mapToOption(input: string, options: string[]): string | null {
+  const trimmed = input.trim();
+  const num = parseInt(trimmed, 10);
+  if (!Number.isNaN(num) && num >= 1 && num <= options.length) {
+    return options[num - 1];
+  }
+  const match = options.find((opt) => opt === trimmed);
+  return match || null;
+}
+
+function buildRecommendationFlexMessage(companyInfoUrl: string) {
+  return {
+    type: 'flex' as const,
+    altText: 'あなたにおすすめの企業',
+    contents: {
+      type: 'bubble' as const,
+      body: {
+        type: 'box' as const,
+        layout: 'vertical' as const,
+        contents: [
+          {
+            type: 'text' as const,
+            text: 'あなたにおすすめの企業',
+            weight: 'bold' as const,
+            size: 'xl' as const,
+            color: '#0F172A',
+            wrap: true,
+          },
+          {
+            type: 'text' as const,
+            text: 'あなたのプロフィールにマッチする企業をピックアップしました',
+            size: 'sm' as const,
+            color: '#64748B',
+            wrap: true,
+            margin: 'md' as const,
+          },
+        ],
+        paddingAll: '20px',
+      },
+      footer: {
+        type: 'box' as const,
+        layout: 'vertical' as const,
+        spacing: 'sm' as const,
+        contents: [
+          {
+            type: 'button' as const,
+            style: 'primary' as const,
+            height: 'md' as const,
+            action: {
+              type: 'uri' as const,
+              label: 'おすすめされた企業を確認する',
+              uri: companyInfoUrl,
+            },
+            color: '#fc9f2a',
+          },
+        ],
+        paddingAll: '20px',
+      },
+    },
+  };
 }
 
 async function handleFollow(userId: string, client: Client) {
